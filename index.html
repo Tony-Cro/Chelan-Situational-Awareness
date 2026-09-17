@@ -1,0 +1,3645 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Chelan Situational Awareness</title>
+  <!-- Dashboard revision: radio tickers v7.81 - NCW Incidents ticker moved to shared R2 feed; preserve all v7.80 features -->
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="refresh" content="1800">
+  <style>
+    :root {
+      --bg: #101114;
+      --panel: #1b1d22;
+      --panel2: #252832;
+      --text: #f4f6f8;
+      --muted: #aab0bd;
+      --border: #3a3f4b;
+      --accent: #8bc7ff;
+      --warn: #ffd166;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    }
+    header {
+      margin-top: 8px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: #050608;
+      border-bottom: 1px solid var(--border);
+      padding: 16px 14px 12px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+    h1 {
+      font-size: 20px;
+      margin: 0;
+      letter-spacing: .04em;
+    }
+    .sub {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 2px;
+    }
+    .header-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    button, a.button {
+      border: 1px solid var(--border);
+      color: var(--text);
+      background: var(--panel2);
+      padding: 6px 9px;
+      border-radius: 6px;
+      font-size: 12px;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    button:hover, a.button:hover { border-color: var(--accent); }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-auto-flow:row;
+      gap: 10px;
+      padding: 10px;
+    }
+    .tile {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      min-height: 300px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border-radius: 8px;
+    }
+    .tile.map { min-height: 360px; }
+    .tile.tall { min-height: 390px; }
+    .tile.extra-tall { min-height: 560px; }
+    .tile.radio { min-height: 260px; }
+    .tile.camera { min-height: 300px; }
+
+    /* Communications monitor panels are intentionally substantial, comparable
+       to the larger environmental monitoring panels. Tickers remain compact below. */
+    .tile.communications-monitor{
+      min-height:525px !important;
+      height:525px;
+    }
+    .tile.communications-monitor .tile-body{
+      flex:1 1 auto;
+      min-height:0;
+    }
+    .tile.rivercom-activity.communications-monitor .tile-body{
+      padding:0;
+      overflow:hidden;
+      display:flex;
+      align-items:flex-start;
+    }
+    .tile.radiant-glow-panel .tile-body{
+      padding:12px;
+      overflow:auto;
+    }
+    .rg-placeholder{
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      min-height:100%;
+      justify-content:center;
+      align-items:flex-start;
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.45;
+    }
+    .rg-status{
+      display:inline-flex;
+      align-items:center;
+      gap:7px;
+      padding:5px 9px;
+      border:1px solid #766a39;
+      border-radius:999px;
+      color:#ffd166;
+      background:#28240f;
+      font-size:11px;
+      font-weight:800;
+      letter-spacing:.04em;
+      text-transform:uppercase;
+    }
+    .rg-title{
+      color:var(--text);
+      font-size:18px;
+      font-weight:800;
+    }
+    .radio-ticker-controls{
+      display:flex;
+      align-items:center;
+      gap:6px;
+      margin-left:auto;
+    }
+    .ticker-reload{
+      border:1px solid var(--border);
+      border-radius:5px;
+      padding:2px 6px;
+      background:#151820;
+      color:var(--text);
+      font:inherit;
+      font-size:10px;
+      cursor:pointer;
+    }
+    .ticker-source-stale{
+      color:#ffd166 !important;
+      font-weight:800;
+    }
+
+    /* Force the gauge panel itself to stay compact, overriding the general tile min-height. */
+    .tile.weather-gauges {
+      min-height: 0 !important;
+    }
+    .tile.weather-gauges .tile-body {
+      flex: 0 0 auto;
+    }
+
+    .tile-title {
+      background: var(--panel2);
+      border-bottom: 1px solid var(--border);
+      padding: 7px 9px;
+      font-size: 13px;
+      font-weight: 650;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+    .tile-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .tile-actions a {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 12px;
+    }
+    .tile-actions button {
+      padding: 3px 6px;
+      font-size: 11px;
+    }
+    .tile-body {
+      flex: 1;
+      min-height: 0;
+      position: relative;
+      background: #0b0c0f;
+    }
+    iframe {
+      border: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      background: #111;
+    }
+
+    .camera-img.contain {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      object-position: center center;
+      display: block;
+      background: #000;
+    }
+
+    .camera-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      background: #111;
+    }
+    .ha-camera-note {
+      padding: 16px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+    .ha-camera-note code {
+      display: inline-block;
+      color: var(--warn);
+      background: #111;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 3px 5px;
+    }
+
+    .link-panel {
+      height: 100%;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 12px;
+      color: var(--muted);
+      line-height: 1.45;
+      background: #0b0c0f;
+    }
+    .link-title {
+      color: var(--text);
+      font-size: 22px;
+      font-weight: 800;
+    }
+    .big-link {
+      display: inline-block;
+      align-self: flex-start;
+      background: var(--panel2);
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      padding: 10px 14px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 800;
+    }
+    .tile.full-width {
+      grid-column: 1 / -1;
+    }
+    .tile.dnr-panel {
+      min-height: 300px;
+    }
+
+
+    .tile.ticker-tile{grid-column:1/-1;min-height:52px!important;height:52px;border-radius:8px}
+    .ticker-row{display:flex;align-items:stretch;width:100%;height:100%;min-width:0}
+    .ticker-label{width:190px;background:var(--panel2);border-right:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 9px;font-size:12px;font-weight:800;letter-spacing:.03em;text-transform:uppercase}
+    .ticker-last-updated{color:var(--muted);font-weight:500;font-size:10px;letter-spacing:0;text-transform:none;white-space:nowrap}
+    .ticker-window{flex:1 1 auto;min-width:0;overflow:hidden;display:flex;align-items:center;padding:0 12px;background:#0b0c0f}
+    .ticker-track{display:inline-flex;align-items:center;gap:24px;white-space:nowrap;animation:ticker-scroll 65s linear infinite}
+    .ticker-window:hover .ticker-track{animation-play-state:paused}
+    .ticker-item{display:inline-flex;align-items:center;gap:6px;color:var(--text);font-size:13px;text-decoration:none}
+    .ticker-item:hover{color:var(--accent);text-decoration:underline}
+    .ticker-severity-warning{color:#ff6b6b;font-weight:800}.ticker-severity-watch{color:#ffb86b;font-weight:800}.ticker-severity-advisory{color:var(--warn);font-weight:800}.ticker-muted{color:var(--muted)}
+    @keyframes ticker-scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+    @media (prefers-reduced-motion:reduce){.ticker-track{animation:none}}
+
+    .ticker-label.public-safety-label{border-left:4px solid #ff9f43}
+    .ticker-label.lcarc-label{border-left:4px solid #8bc7ff}
+    .radio-ticker-time{color:var(--accent);font-weight:800}
+    .radio-ticker-disclaimer{color:var(--warn);font-size:11px}
+    .radio-ticker-stale{color:var(--muted)}
+    .radio-caution{
+      grid-column:1/-1;
+      margin:0;
+      padding:7px 12px;
+      border:1px solid #6f6331;
+      border-radius:8px;
+      background:#28240f;
+      color:#ffd166;
+      font-size:12px;
+      line-height:1.35;
+    }
+    .ticker-tile.radio-transcript .ticker-window{
+      overflow-x:auto;
+      overflow-y:hidden;
+      scrollbar-width:thin;
+      scrollbar-color:#596170 #0b0c0f;
+      cursor:ew-resize;
+    }
+    .ticker-tile.radio-transcript .ticker-window::-webkit-scrollbar{height:8px}
+    .ticker-tile.radio-transcript .ticker-window::-webkit-scrollbar-track{background:#0b0c0f}
+    .ticker-tile.radio-transcript .ticker-window::-webkit-scrollbar-thumb{background:#596170;border-radius:999px}
+    .ticker-tile.radio-transcript .ticker-track{animation:none;transform:translateX(0);padding-right:18px}
+    /* Radio transcript tickers are intentionally stationary. History remains manually scrollable. */
+
+    /* RiverCom Calls activity panel — additive to the Bearcat and LCARC transcript tickers. */
+    .tile.rivercom-activity{
+      min-height:0!important;
+    }
+    .rivercom-activity .tile-body{
+      padding:0;
+      overflow:hidden;
+    }
+    .rivercom-status{
+      color:var(--muted);
+      font-size:11px;
+      font-weight:500;
+      white-space:nowrap;
+    }
+    .rivercom-list{
+      display:flex;
+      flex-direction:column;
+      width:100%;
+      max-height:148px;
+      overflow-y:auto;
+      overflow-x:hidden;
+      background:#0b0c0f;
+      scrollbar-gutter:stable;
+    }
+    .rivercom-row{
+      display:grid;
+      grid-template-columns:90px minmax(105px,1fr) 60px 64px;
+      align-items:center;
+      gap:10px;
+      min-height:36px;
+      padding:6px 10px;
+      border-top:1px solid #252832;
+      font-size:12px;
+    }
+    .rivercom-row:first-child{border-top:0}
+    .rivercom-time{color:var(--accent);font-weight:800;white-space:nowrap}
+    .rivercom-channel{font-weight:800;white-space:nowrap}
+    .rivercom-freq,.rivercom-duration{color:var(--muted);white-space:nowrap}
+    .rivercom-audio{
+      justify-self:start;
+      border:1px solid var(--border);
+      border-radius:6px;
+      padding:3px 8px;
+      color:var(--accent);
+      text-decoration:none;
+      font-weight:700;
+      white-space:nowrap;
+    }
+    .rivercom-audio:hover{border-color:var(--accent)}
+    .rivercom-empty{padding:10px 12px;color:var(--muted);font-size:12px}
+    @media (max-width:760px){
+      .rivercom-row{
+        grid-template-columns:76px minmax(88px,1fr) 48px 60px;
+        gap:6px;
+        font-size:11px;
+      }
+    }
+
+    .notice {
+      padding: 8px 10px;
+      color: var(--muted);
+      font-size: 12px;
+      border-top: 1px solid var(--border);
+      background: #08090c;
+    }
+
+    /* Compact weather gauges replacing the three large Windy panels */
+    .tile.weather-gauges {
+      grid-column: span 3;
+      min-height: 0;
+      height: auto;
+    }
+    .weather-gauge-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      padding: 8px;
+      height: auto;
+    }
+    .gauge-card {
+      background: #11141a;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px;
+      display: grid;
+      grid-template-rows: auto 78px auto;
+      min-height: 118px;
+    }
+    .gauge-label {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 650;
+      letter-spacing: .02em;
+      text-transform: uppercase;
+    }
+    .gauge-face {
+      width: 82px;
+      height: 82px;
+      border-radius: 50%;
+      margin: 3px auto;
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle at center, #11141a 0 55%, transparent 56%),
+        conic-gradient(var(--accent) calc(var(--pct, 0) * 1%), #2d333d 0);
+      border: 1px solid #3e4654;
+      position: relative;
+    }
+    .gauge-face.wind-compass {
+      background:
+        radial-gradient(circle at center, #11141a 0 57%, transparent 58%),
+        conic-gradient(#2d333d 0 100%);
+    }
+    .gauge-value {
+      font-size: 16px;
+      font-weight: 800;
+      line-height: 1;
+    }
+    .gauge-unit {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 3px;
+      text-align: center;
+    }
+    .wind-arrow {
+      position: absolute;
+      width: 4px;
+      height: 30px;
+      background: var(--accent);
+      border-radius: 999px;
+      transform-origin: 50% 41px;
+      transform: rotate(var(--wind-deg, 0deg));
+      top: 10px;
+      left: calc(50% - 2px);
+    }
+    .wind-arrow::before {
+      content: "";
+      position: absolute;
+      top: -8px;
+      left: -6px;
+      border-left: 8px solid transparent;
+      border-right: 8px solid transparent;
+      border-bottom: 12px solid var(--accent);
+    }
+    .wind-center {
+      position: absolute;
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: #11141a;
+      border: 1px solid #3e4654;
+      display: grid;
+      place-items: center;
+      font-size: 16px;
+      font-weight: 800;
+      z-index: 2;
+    }
+    .gauge-detail {
+      color: var(--muted);
+      font-size: 12px;
+      text-align: center;
+      min-height: 22px;
+    }
+    .weather-status {
+      color: var(--muted);
+      font-size: 12px;
+      padding: 0 10px 8px;
+      text-align: right;
+    }
+    .weather-status a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    @media (max-width: 1200px) {
+      .tile.weather-gauges { grid-column: span 2; }
+    }
+    @media (max-width: 760px) {
+      .tile.weather-gauges { grid-column: span 1; min-height: 0 !important; }
+      .weather-gauge-grid { grid-template-columns: 1fr; }
+    }
+
+
+    .gauge-card {
+      grid-template-rows: auto 78px auto;
+    }
+    .gauge-label {
+      font-size: 12px;
+    }
+    .gauge-unit {
+      font-size: 10px;
+    }
+    .gauge-detail {
+      font-size: 11px;
+      line-height: 1.25;
+    }
+    .weather-open-links {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 6px;
+      flex-wrap: wrap;
+      padding: 0 10px 8px;
+      font-size: 12px;
+    }
+    .weather-open-links span {
+      color: var(--muted);
+    }
+    .weather-open-links a {
+      color: var(--accent);
+      text-decoration: none;
+      border: 1px solid var(--border);
+      background: var(--panel2);
+      border-radius: 6px;
+      padding: 4px 7px;
+      font-weight: 650;
+    }
+
+    .tile.weather-gauges .tile-title {
+      padding: 5px 8px;
+    }
+    .tile.weather-gauges .tile-actions {
+      gap: 4px;
+    }
+    .tile.weather-gauges .tile-actions a,
+    .tile.weather-gauges .tile-actions button {
+      font-size: 10px;
+      padding: 3px 5px;
+      line-height: 1.1;
+    }
+
+    .weather-open-links a:hover {
+      border-color: var(--accent);
+    }
+
+
+    /* Four compact first-row weather gauge panels */
+    .tile.gauge-tile {
+      min-height: 158px !important;
+      height: 158px;
+    }
+    .tile.gauge-tile .tile-title {
+      padding: 5px 8px;
+    }
+    .tile.gauge-tile .tile-actions {
+      gap: 4px;
+    }
+    .tile.gauge-tile .tile-actions a,
+    .tile.gauge-tile .tile-actions button {
+      font-size: 10px;
+      padding: 3px 5px;
+      line-height: 1.1;
+    }
+    .tile.gauge-tile .tile-body {
+      flex: 1 1 auto;
+    }
+    .single-gauge {
+      height: 100%;
+      min-height: 0 !important;
+      border: 0;
+      background: transparent;
+      padding: 5px 8px 6px;
+      grid-template-rows: 82px auto;
+      align-content: center;
+    }
+    .single-gauge .gauge-face {
+      width: 78px;
+      height: 78px;
+      margin: 0 auto 3px;
+    }
+    .single-gauge .gauge-value {
+      font-size: 21px;
+    }
+    .single-gauge .gauge-unit {
+      font-size: 10px;
+    }
+    .single-gauge .gauge-detail {
+      font-size: 11px;
+      line-height: 1.18;
+      min-height: 0;
+    }
+    .single-gauge .wind-arrow {
+      height: 28px;
+      transform-origin: 50% 39px;
+      top: 9px;
+    }
+    .single-gauge .wind-center {
+      width: 36px;
+      height: 36px;
+      font-size: 15px;
+    }
+    .row-start {
+      grid-column-start: 1;
+    }
+
+
+    /* Four compact first-row weather panels: current gauge + 24-hour line graph */
+    .tile.gauge-tile {
+      min-height: 170px !important;
+      height: 170px;
+    }
+    .tile.gauge-tile .tile-title {
+      padding: 5px 8px;
+    }
+    .tile.gauge-tile .tile-actions {
+      gap: 4px;
+    }
+    .tile.gauge-tile .tile-actions a,
+    .tile.gauge-tile .tile-actions button {
+      font-size: 10px;
+      padding: 3px 5px;
+      line-height: 1.1;
+    }
+    .tile.gauge-tile .tile-body {
+      flex: 1 1 auto;
+    }
+    .gauge-combo {
+      height: 100%;
+      min-height: 0 !important;
+      border: 0;
+      background: transparent;
+      padding: 6px 8px;
+      display: grid;
+      grid-template-columns: 94px minmax(0, 1fr);
+      gap: 8px;
+      align-items: center;
+    }
+    .gauge-side {
+      min-width: 0;
+      display: grid;
+      grid-template-rows: 82px auto;
+      align-items: center;
+    }
+    .graph-side {
+      min-width: 0;
+      height: 112px;
+      display: grid;
+      grid-template-rows: 1fr auto;
+      gap: 3px;
+    }
+    .sparkline {
+      width: 100%;
+      height: 92px;
+      background: #0d1016;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      display: block;
+    }
+    .graph-caption {
+      color: var(--muted);
+      font-size: 10px;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .gauge-combo .gauge-face {
+      width: 78px;
+      height: 78px;
+      margin: 0 auto 3px;
+    }
+    .gauge-combo .gauge-value {
+      font-size: 21px;
+    }
+    .gauge-combo .gauge-unit {
+      font-size: 10px;
+    }
+    .gauge-combo .gauge-detail {
+      font-size: 10px;
+      line-height: 1.15;
+      min-height: 0;
+      text-align: center;
+    }
+    .gauge-combo .wind-arrow {
+      height: 28px;
+      transform-origin: 50% 39px;
+      top: 9px;
+    }
+    .gauge-combo .wind-center {
+      width: 36px;
+      height: 36px;
+      font-size: 15px;
+    }
+    .row-start {
+      grid-column-start: 1;
+    }
+    @media (max-width: 1200px) {
+      .tile.gauge-tile {
+        height: 185px;
+      }
+    }
+    @media (max-width: 760px) {
+      .tile.gauge-tile {
+        height: 210px;
+        min-height: 210px !important;
+      }
+      .gauge-combo {
+        grid-template-columns: 84px minmax(0, 1fr);
+      }
+    }
+
+
+
+    /* Main dashboard identity uses the same solid-rail language as section separators. */
+    header{
+      padding:18px 14px 10px 14px;
+    }
+    header h1{
+      display:grid;
+      grid-template-columns:auto 1fr;
+      align-items:center;
+      gap:24px;
+      margin:0;
+      color:#f0a35b;
+      font-family:"Arial Narrow","Roboto Condensed","Helvetica Neue",Arial,sans-serif;
+      font-size:36px;
+      font-weight:900;
+      letter-spacing:.075em;
+      line-height:1;
+      text-transform:uppercase;
+    }
+    header h1::after{
+      content:"";
+      display:block;
+      width:100%;
+      height:36px;
+      background:#f0a35b;
+      border-radius:18px 0 0 18px;
+    }
+    header .subtitle{
+      margin-top:10px;
+      color:#f0a35b;
+      font-size:15px;
+      font-weight:600;
+      letter-spacing:.015em;
+    }
+    @media (max-width:900px){
+      header h1{
+        gap:14px;
+        font-size:29px;
+      }
+      header h1::after{
+        height:29px;
+        border-radius:15px 0 0 15px;
+      }
+      header .subtitle{font-size:14px}
+    }
+
+    /* Major situational-awareness section rails — simplified LCARS influence:
+       large condensed label plus one solid rail matching the text color and height. */
+    .major-section-header{
+      --section-accent:#f0a35b;
+      grid-column:1/-1;
+      display:grid;
+      grid-template-columns:auto 1fr;
+      align-items:center;
+      gap:22px;
+      min-height:78px;
+      margin:24px 0 10px 0;
+      padding:0 4px;
+      background:transparent;
+      color:var(--section-accent);
+      font-family:"Arial Narrow","Roboto Condensed","Helvetica Neue",Arial,sans-serif;
+      font-size:30px;
+      font-weight:900;
+      letter-spacing:.075em;
+      line-height:1;
+      text-transform:uppercase;
+    }
+    .major-section-header::before{content:none}
+    .major-section-header::after{
+      content:"";
+      display:block;
+      width:100%;
+      height:30px;
+      background:var(--section-accent);
+      border-radius:15px 0 0 15px;
+    }
+    .major-section-header span{
+      display:block;
+      padding:0;
+      margin:0;
+      background:transparent;
+      color:var(--section-accent);
+      white-space:nowrap;
+      text-shadow:none;
+    }
+    .major-section-header span::before{content:none}
+    .major-section-header.environmental{--section-accent:#f0a35b}
+    .major-section-header.communications{--section-accent:#e59b63}
+    .major-section-header.infrastructure{--section-accent:#ee8d63}
+    .major-section-header.surveillance{--section-accent:#dca566}
+    @media (max-width:900px){
+      .major-section-header{
+        min-height:66px;
+        gap:14px;
+        font-size:24px;
+      }
+      .major-section-header::after{
+        height:24px;
+        border-radius:12px 0 0 12px;
+      }
+    }
+
+    @media (min-width: 1800px) {
+      .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    }
+    @media (max-width: 1200px) {
+      .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 760px) {
+      header { flex-direction: column; align-items: flex-start; }
+      .grid { grid-template-columns: 1fr; }
+      .tile, .tile.map, .tile.tall, .tile.extra-tall { min-height: 420px; }
+      .tile.weather-gauges { min-height: 0 !important; }
+    }
+  
+    /* v7.6 final header overrides */
+    header h1{
+      display:grid !important;
+      grid-template-columns:auto 1fr !important;
+      align-items:center !important;
+      gap:24px !important;
+      margin:0 !important;
+      color:#f0a35b !important;
+      font-size:36px !important;
+      font-weight:900 !important;
+      letter-spacing:.075em !important;
+    }
+    header h1::after{
+      content:"" !important;
+      display:block !important;
+      width:100% !important;
+      height:36px !important;
+      background:#f0a35b !important;
+      border-radius:18px 0 0 18px !important;
+    }
+    header .subtitle,
+    header .sub{
+      color:#f0a35b !important;
+      font-size:15px !important;
+      font-weight:600 !important;
+    }
+    .tile.rivercom-activity.communications-monitor .tile-body{
+      align-items:stretch !important;
+    }
+    .tile.rivercom-activity .rivercom-list{
+      flex:1 1 auto !important;
+      max-height:none !important;
+      height:100% !important;
+      overflow-y:auto !important;
+      align-self:stretch !important;
+    }
+
+  
+    /* v7.9 — ONLY the first five Environmental panels:
+       3 equal-width panels on row 1, 2 on row 2.
+       Global grid, gauge dimensions, and every other panel remain v7.6. */
+    .tile.env-three-col{
+      grid-column:auto !important;
+      width:calc((100vw - 56px) / 3) !important;
+      max-width:calc((100vw - 56px) / 3) !important;
+      min-width:0 !important;
+      justify-self:start;
+    }
+
+  
+    /* v7.10 — Weather Alerts ticker only: span the full dashboard width. */
+    .tile.weather-alerts-full{
+      grid-column:1 / -1 !important;
+      width:auto !important;
+      max-width:none !important;
+    }
+
+  
+    /* v7.19 — RiverCom audio plays inside the existing v7.17 panel.
+       No Communications sizing/order changes from v7.17. */
+    .tile.rivercom-activity.communications-monitor .tile-body{
+      position:relative;
+      display:flex;
+      flex-direction:column;
+      align-items:stretch !important;
+    }
+    .tile.rivercom-activity .rivercom-list{
+      flex:1 1 auto !important;
+      min-height:0 !important;
+      height:auto !important;
+      max-height:none !important;
+      overflow-y:auto !important;
+    }
+    .rivercom-player{
+      flex:0 0 auto;
+      display:none;
+      padding:6px 8px 7px;
+      border-top:1px solid #252832;
+      background:#14161b;
+    }
+    .rivercom-player.active{display:block}
+    .rivercom-player-label{
+      font-size:11px;
+      color:var(--muted);
+      margin:0 0 4px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .rivercom-player audio{
+      display:block;
+      width:100%;
+      height:30px;
+    }
+    button.rivercom-audio{
+      justify-self:start;
+      border:1px solid var(--border);
+      border-radius:6px;
+      padding:3px 8px;
+      color:var(--accent);
+      background:transparent;
+      text-decoration:none;
+      font-weight:700;
+      white-space:nowrap;
+      cursor:pointer;
+      font:inherit;
+    }
+    button.rivercom-audio:hover{border-color:var(--accent)}
+
+  
+    .forecast-seven-day{
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:7px;
+      padding:8px;
+      height:100%;
+      box-sizing:border-box;
+      overflow:auto;
+      align-content:start;
+    }
+    .forecast-day{
+      border:1px solid #2b3942;background:#10161b;border-radius:6px;
+      padding:7px 8px;min-width:0;
+      display:grid;grid-template-columns:48px minmax(0,1fr);grid-template-rows:auto auto auto;
+      column-gap:8px;row-gap:2px;align-items:center;
+    }
+    .forecast-icon{width:46px;height:46px;object-fit:contain;grid-row:1 / 4;align-self:center;}
+    .forecast-head{display:flex;justify-content:space-between;gap:8px;align-items:baseline;}
+    .forecast-day-name{font-weight:700;color:#f1b44c;font-size:13px;}
+    .forecast-temps{font-weight:700;font-size:15px;white-space:nowrap;}
+    .forecast-short{font-size:11px;line-height:1.2;color:#e6edf2;}
+    .forecast-meta{font-size:10px;line-height:1.25;color:#aebbc4;display:flex;flex-wrap:wrap;gap:3px 9px;}
+    .forecast-meta b{color:#dce6ec;font-weight:600;}
+    .forecast-status{padding:14px;font-size:13px;color:#c8d0d6;}
+    @media(max-width:900px){
+      .forecast-seven-day{grid-template-columns:1fr;}
+    }
+    .spc-map-body{position:relative;overflow:hidden;background:#0b0c0f;}
+    .spc-map{width:100%;height:100%;min-height:300px;}
+    .spc-map-status{
+      position:absolute;top:10px;left:50%;transform:translateX(-50%);
+      z-index:600;background:rgba(8,12,15,.88);border:1px solid #40505a;
+      border-radius:4px;padding:5px 9px;font-size:11px;color:#e5edf2;
+      pointer-events:none;white-space:nowrap;
+    }
+    .spc-legend{
+      position:absolute;left:8px;bottom:8px;z-index:600;
+      background:rgba(8,12,15,.90);border:1px solid #40505a;border-radius:4px;
+      padding:5px 7px;display:flex;flex-wrap:wrap;gap:5px 8px;
+      font-size:10px;color:#e5edf2;max-width:calc(100% - 16px);
+    }
+    .spc-legend span{display:flex;align-items:center;gap:3px;}
+    .spc-swatch{width:10px;height:10px;border:1px solid rgba(255,255,255,.65);display:inline-block;}
+    .spc-swatch.tstm{background:rgb(193,233,193);}
+    .spc-swatch.mrgl{background:rgb(102,163,102);}
+    .spc-swatch.slgt{background:rgb(255,224,102);}
+    .spc-swatch.enh{background:rgb(255,163,102);}
+    .spc-swatch.mdt{background:rgb(224,102,102);}
+    .spc-swatch.high{background:rgb(238,153,238);}
+    .spc-chelan-marker{
+      width:12px;height:12px;border-radius:50%;background:#fff;
+      border:3px solid #111;box-shadow:0 0 0 2px #f1b44c;
+    }
+
+  
+    /* v7.34 — Native recent-earthquake map. Avoids PNSN iframe restrictions. */
+    .earthquake-map-body{position:relative;overflow:hidden;background:#0b0c0f;}
+    .earthquake-map{width:100%;height:100%;min-height:520px;}
+    .earthquake-map-status{
+      position:absolute;top:10px;left:50%;transform:translateX(-50%);
+      z-index:600;background:rgba(8,12,15,.90);border:1px solid #40505a;
+      border-radius:4px;padding:5px 9px;font-size:11px;color:#e5edf2;
+      pointer-events:none;white-space:nowrap;
+    }
+    .earthquake-legend{
+      position:absolute;left:8px;bottom:8px;z-index:600;
+      background:rgba(8,12,15,.90);border:1px solid #40505a;border-radius:4px;
+      padding:5px 7px;display:flex;gap:9px;font-size:10px;color:#e5edf2;
+    }
+    .earthquake-legend span{display:flex;align-items:center;gap:4px;}
+    .earthquake-dot{display:inline-block;border-radius:50%;background:#f1b44c;border:1px solid #fff;}
+    .earthquake-dot.eq-small{width:7px;height:7px;}
+    .earthquake-dot.eq-medium{width:10px;height:10px;}
+    .earthquake-dot.eq-large{width:14px;height:14px;}
+
+
+    /* v7.35 — Native NOAA/NWS Local Storm Reports map. */
+    .storm-reports-map-body{position:relative;overflow:hidden;background:#0b0c0f;}
+    .storm-reports-map{width:100%;height:100%;min-height:520px;}
+    .storm-reports-map-status{
+      position:absolute;top:10px;left:50%;transform:translateX(-50%);
+      z-index:600;background:rgba(8,12,15,.90);border:1px solid #40505a;
+      border-radius:4px;padding:5px 9px;font-size:11px;color:#e5edf2;
+      pointer-events:none;white-space:nowrap;
+    }
+    .storm-reports-legend{
+      position:absolute;left:8px;bottom:8px;z-index:600;
+      background:rgba(8,12,15,.90);border:1px solid #40505a;border-radius:4px;
+      padding:5px 7px;display:flex;flex-wrap:wrap;gap:6px 9px;
+      font-size:10px;color:#e5edf2;
+    }
+    .storm-reports-legend span{display:flex;align-items:center;gap:4px;}
+    .storm-dot{width:10px;height:10px;border-radius:50%;display:inline-block;border:1px solid rgba(255,255,255,.8);}
+    .storm-dot.storm-severe{background:#ff6b6b;}
+    .storm-dot.storm-flood{background:#4da3ff;}
+    .storm-dot.storm-winter{background:#e7f5ff;}
+    .storm-dot.storm-fire{background:#ff9f43;}
+    .storm-dot.storm-other{background:#c792ea;}
+
+
+    /* v7.37 — Esri Wildfire Aware */
+    .esri-wildfire-body{position:relative;overflow:hidden;background:#0b0c0f;}
+    .esri-wildfire-frame{width:100%;height:100%;min-height:520px;border:0;display:block;background:#0b0c0f;}
+    .esri-wildfire-fallback{position:absolute;left:8px;right:8px;bottom:8px;z-index:2;padding:5px 8px;border-radius:4px;background:rgba(8,12,15,.82);color:#dce5ea;font-size:10px;pointer-events:none;}
+.severe-weather-native-body{position:relative;overflow:hidden;background:#0b0c0f}
+.severe-weather-native-map{width:100%;height:100%;min-height:520px}
+.severe-weather-map-status{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:600;background:rgba(8,12,15,.9);border:1px solid #40505a;border-radius:4px;padding:5px 9px;font-size:11px;color:#e5edf2;white-space:nowrap}
+.severe-weather-legend{position:absolute;left:8px;bottom:8px;z-index:600;background:rgba(8,12,15,.9);border:1px solid #40505a;border-radius:4px;padding:5px 7px;display:flex;gap:9px;font-size:10px;color:#e5edf2}
+.sw-report-icon{position:relative;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;color:#2f2508;filter:drop-shadow(0 1px 1px rgba(0,0,0,.45))}
+.sw-report-icon.diamond{background:#f4c44e;border:2px solid #5b4511;border-radius:2px;transform:rotate(45deg)}
+.sw-report-icon.diamond span{transform:rotate(-45deg);display:block;line-height:1}
+.sw-report-icon.tornado{width:0;height:0;border-left:13px solid transparent;border-right:13px solid transparent;border-top:24px solid #dc6672;filter:drop-shadow(0 1px 1px rgba(0,0,0,.45))}
+.sw-report-icon.tornado span{position:absolute;top:-23px;left:-7px;color:#261216;font-size:13px;line-height:1}
+.sw-report-icon.flood{background:#68a9da;border-color:#274f6a}
+.sw-report-icon.winter{background:#dfeefa;border-color:#587185;color:#17384f}
+.sw-report-icon.fire{background:#ee8d49;border-color:#6d3514;color:#3b1a07}
+.sw-report-icon.generic{background:#f3dd9b;border-color:#6a5c2c}
+.sw-report-cluster{background:#f4c44e;border:2px solid #5b4511;border-radius:4px;color:#2f2508;font-weight:800;text-align:center;line-height:24px;width:26px;height:26px}
+/* v7.43 — Esri Flooding Public Information Map */
+.esri-flooding-body{position:relative;overflow:hidden;background:#0b0c0f}
+.esri-flooding-frame{width:100%;height:100%;min-height:520px;border:0;display:block;background:#0b0c0f}
+.esri-flooding-note{position:absolute;left:8px;right:8px;bottom:8px;z-index:2;padding:5px 8px;border-radius:4px;background:rgba(8,12,15,.82);color:#dce5ea;font-size:10px;pointer-events:none}
+/* v7.45 — National Flood Outlook map-only + WPC PQPF */
+.national-flood-body{position:relative;overflow:hidden;background:#0b0c0f}
+.national-flood-map{width:100%;height:100%;min-height:520px}
+.national-flood-status{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:600;background:rgba(8,12,15,.9);border:1px solid #40505a;border-radius:4px;padding:5px 9px;font-size:11px;color:#e5edf2;white-space:nowrap}
+.national-flood-legend{position:absolute;left:8px;bottom:8px;z-index:600;background:rgba(8,12,15,.9);border:1px solid #40505a;border-radius:4px;padding:5px 7px;display:flex;gap:9px;font-size:10px;color:#e5edf2}
+.nfo-swatch{display:inline-block;width:15px;height:9px;margin-right:4px;border:1px solid rgba(255,255,255,.75)}
+.nfo-occurring{background:#d7191c}.nfo-likely{background:#fdae61}.nfo-possible{background:#ffff66}
+.wpc-pqpf-body{position:relative;overflow:hidden;background:#0b0c0f}
+.wpc-pqpf-frame{width:100%;height:100%;min-height:520px;border:0;display:block;background:#fff}
+.wpc-pqpf-note{position:absolute;left:8px;right:8px;bottom:8px;z-index:2;padding:5px 8px;border-radius:4px;background:rgba(8,12,15,.84);color:#dce5ea;font-size:10px;pointer-events:none}
+/* v7.46 — map-focused WPC PQPF viewport */
+.wpc-pqpf-map-window{position:absolute;inset:0;overflow:hidden;background:#fff}
+.wpc-pqpf-map-window .wpc-pqpf-frame{position:absolute;left:-4%;top:-92px;width:108%;height:760px;min-height:0;border:0;background:#fff}
+/* v7.47 — tight WPC PQPF content crop */
+.wpc-pqpf-body{position:relative;overflow:hidden;background:#c9e8f3}
+.wpc-pqpf-map-window{position:absolute;inset:0;overflow:hidden;background:#c9e8f3}
+.wpc-pqpf-map-window .wpc-pqpf-frame{
+  position:absolute;
+  left:0;
+  top:-118px;
+  width:100%;
+  height:1040px;
+  min-height:0;
+  border:0;
+  background:#c9e8f3;
+}
+.wpc-pqpf-note{display:none}
+/* v7.48 — force desktop WPC layout, then crop away NOAA/WPC chrome and left navigation */
+.wpc-pqpf-body{
+  position:relative;
+  overflow:hidden;
+  background:#c9e8f3;
+}
+.wpc-pqpf-map-window{
+  position:absolute;
+  inset:0;
+  overflow:hidden;
+  background:#c9e8f3;
+}
+.wpc-pqpf-map-window .wpc-pqpf-frame{
+  position:absolute;
+  width:1050px !important;
+  height:1120px !important;
+  min-width:1050px !important;
+  min-height:1120px !important;
+  left:-96px !important;
+  top:-160px !important;
+  border:0;
+  background:#c9e8f3;
+  transform:scale(.64);
+  transform-origin:0 0;
+}
+.wpc-pqpf-note{display:none}
+/* v7.49 — exact WPC 24-hour >=0.25" product crop */
+.wpc-pqpf-body{position:relative;overflow:hidden;background:#c9e8f3}
+.wpc-pqpf-map-window{position:absolute;inset:0;overflow:hidden;background:#c9e8f3}
+.wpc-pqpf-map-window .wpc-pqpf-frame{
+  position:absolute !important;
+  width:1050px !important;
+  height:1200px !important;
+  min-width:1050px !important;
+  min-height:1200px !important;
+  left:-135px !important;
+  top:-315px !important;
+  border:0 !important;
+  background:#c9e8f3 !important;
+  transform:scale(.64) !important;
+  transform-origin:0 0 !important;
+}
+.wpc-pqpf-note{display:none !important}
+/* v7.50 — keep the sticky dashboard header above all maps, controls, and embedded panels */
+header{
+  z-index:10000 !important;
+  isolation:isolate;
+}
+
+/* v7.50 — exact WPC PQPF product-only viewport matching the requested screenshot */
+.wpc-pqpf-body{
+  position:relative;
+  overflow:hidden;
+  background:#c9e8f3 !important;
+}
+.wpc-pqpf-map-window{
+  position:absolute;
+  inset:0;
+  overflow:hidden;
+  background:#c9e8f3 !important;
+}
+.wpc-pqpf-map-window .wpc-pqpf-frame{
+  position:absolute !important;
+  width:1050px !important;
+  height:1180px !important;
+  min-width:1050px !important;
+  min-height:1180px !important;
+  left:-86px !important;
+  top:-212px !important;
+  border:0 !important;
+  background:#c9e8f3 !important;
+  transform:scale(.64) !important;
+  transform-origin:0 0 !important;
+}
+.wpc-pqpf-note{display:none !important}
+
+/* v7.51 — PQPF viewport ends immediately after the NOAA/WPC forecast graphic */
+.wpc-pqpf-map-window .wpc-pqpf-frame{
+  top:-212px !important;
+}
+.wpc-pqpf-body,
+.wpc-pqpf-map-window{
+  max-height:520px !important;
+}
+
+/* v7.51 — NBC News NOW local-file-safe panel */
+.nbc-news-launch{display:flex;align-items:center;justify-content:center;background:#10131a}
+.nbc-news-launch-inner{text-align:center;max-width:430px;padding:28px}
+.nbc-news-live-badge{display:inline-block;padding:4px 10px;border:1px solid #e8edf2;border-radius:4px;font-size:12px;font-weight:800;letter-spacing:.12em}
+.nbc-news-launch-title{font-size:27px;font-weight:800;margin-top:14px}
+.nbc-news-launch-copy{font-size:13px;line-height:1.45;margin:10px 0 20px;color:#cbd3db}
+.nbc-news-watch-button{display:inline-block;padding:10px 16px;border:1px solid #aab5c0;border-radius:5px;text-decoration:none;font-weight:700;color:#fff;background:#202936}
+.nbc-news-launch-note{font-size:10px;line-height:1.35;margin-top:20px;color:#8f9aa5}
+
+/* v7.52 — terminate the PQPF panel at the bottom edge of the forecast graphic */
+.tile.wpc-pqpf-panel{
+  min-height:455px !important;
+  height:455px !important;
+  align-self:start !important;
+}
+.tile.wpc-pqpf-panel .wpc-pqpf-body{
+  height:auto !important;
+  max-height:none !important;
+  overflow:hidden !important;
+}
+.tile.wpc-pqpf-panel .wpc-pqpf-map-window{
+  height:100% !important;
+  max-height:none !important;
+  overflow:hidden !important;
+}
+.tile.wpc-pqpf-panel .wpc-pqpf-frame{
+  top:-230px !important;
+  left:-86px !important;
+  width:1050px !important;
+  height:1120px !important;
+  transform:scale(.64) !important;
+  transform-origin:0 0 !important;
+}
+
+/* v7.53 — hard-stop the PQPF tile immediately below the forecast graphic */
+.tile.wpc-pqpf-panel{
+  height:410px !important;
+  min-height:410px !important;
+  max-height:410px !important;
+  overflow:hidden !important;
+}
+.tile.wpc-pqpf-panel .tile-body,
+.tile.wpc-pqpf-panel .wpc-pqpf-body,
+.tile.wpc-pqpf-panel .wpc-pqpf-map-window{
+  height:374px !important;
+  min-height:374px !important;
+  max-height:374px !important;
+  overflow:hidden !important;
+}
+
+/* v7.54 — enlarge the PQPF product uniformly to fill the available tile height */
+.tile.wpc-pqpf-panel .wpc-pqpf-frame{
+  left:-118px !important;
+  top:-248px !important;
+  transform:scale(.70) !important;
+  transform-origin:0 0 !important;
+}
+
+/* v7.55 — KREM 2 Spokane / Local Now */
+.krem-localnow-body{position:relative;overflow:hidden;background:#05070a}
+.krem-localnow-frame{width:100%;height:100%;min-height:489px;border:0;display:block;background:#05070a}
+
+/* v7.56 — KREM / Local Now local-file-safe launch panel */
+.krem-localnow-launch{display:flex;align-items:center;justify-content:center;background:#10131a}
+.krem-localnow-launch-inner{text-align:center;max-width:430px;padding:28px}
+.krem-localnow-live-badge{display:inline-block;padding:4px 10px;border:1px solid #e8edf2;border-radius:4px;font-size:12px;font-weight:800;letter-spacing:.12em}
+.krem-localnow-launch-title{font-size:27px;font-weight:800;margin-top:14px}
+.krem-localnow-launch-copy{font-size:13px;line-height:1.45;margin:10px 0 20px;color:#cbd3db}
+.krem-localnow-watch-button{display:inline-block;padding:10px 16px;border:1px solid #aab5c0;border-radius:5px;text-decoration:none;font-weight:700;color:#fff;background:#202936}
+.krem-localnow-launch-note{font-size:10px;line-height:1.35;margin-top:20px;color:#8f9aa5}
+
+/* v7.57 — Wapato Point / Bear Mountain webcam */
+.wapato-bear-webcam-panel{min-height:525px}
+.wapato-bear-webcam-body{position:relative;overflow:hidden;background:#05070a}
+.wapato-bear-webcam-frame{width:100%;height:100%;min-height:489px;border:0;display:block;background:#05070a}
+
+/* v7.58 — direct Wapato Point webcam image only */
+.wapato-bear-webcam-body{position:relative;overflow:hidden;background:#05070a;padding:0 !important}
+.wapato-bear-webcam-image{
+  width:100%;
+  height:100%;
+  min-height:489px;
+  display:block;
+  object-fit:cover;
+  object-position:center;
+  background:#05070a;
+}
+
+/* v7.59 — WPC PQPF instruction footer */
+.tile.wpc-pqpf-panel{
+  height:438px !important;
+  min-height:438px !important;
+  max-height:438px !important;
+}
+.tile.wpc-pqpf-panel .tile-body,
+.tile.wpc-pqpf-panel .wpc-pqpf-body,
+.tile.wpc-pqpf-panel .wpc-pqpf-map-window{
+  height:374px !important;
+  min-height:374px !important;
+  max-height:374px !important;
+}
+.wpc-pqpf-hover-instruction{
+  height:28px;
+  box-sizing:border-box;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:4px 10px;
+  border-top:1px solid #344251;
+  background:#111821;
+  color:#cbd7e2;
+  font-size:11px;
+  font-style:italic;
+  text-align:center;
+}
+
+/* v7.60 — 25 Mile Creek State Park direct webcam image */
+.twentyfive-mile-webcam-panel{min-height:525px}
+.twentyfive-mile-webcam-body{position:relative;overflow:hidden;background:#05070a;padding:0 !important}
+.twentyfive-mile-webcam-image{width:100%;height:100%;min-height:489px;display:block;object-fit:cover;object-position:center;background:#05070a}
+
+
+/* v7.62 — live Radiant Glow Major Events panel */
+.rg-status.rg-live{border-color:#3d7b57;color:#8ee6ad;background:#102419}
+.rg-status.rg-stale{border-color:#766a39;color:#ffd166;background:#28240f}
+.rg-status.rg-error{border-color:#8a4545;color:#ff9b9b;background:#2b1414}
+.rg-live-wrap{display:flex;flex-direction:column;gap:10px;min-height:100%;font-size:12px;line-height:1.35}
+.rg-incident-card{border:1px solid #3a3f4b;border-radius:8px;background:#11141a;overflow:hidden}
+.rg-incident-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;padding:10px 11px;border-bottom:1px solid #2b3039}
+.rg-incident-type{font-size:18px;font-weight:900;color:#ffb86b;line-height:1.15}
+.rg-level{flex:0 0 auto;border:1px solid #8a5c38;border-radius:999px;padding:3px 8px;color:#ffc28c;background:#2a1c12;font-size:10px;font-weight:900;text-transform:uppercase}
+.rg-location{padding:8px 11px 3px;font-size:14px;font-weight:800;color:#f4f6f8}
+.rg-age{padding:0 11px 8px;color:#aab0bd;font-size:11px}
+.rg-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 12px;padding:8px 11px;border-top:1px solid #252832}
+.rg-detail{min-width:0}.rg-detail-label{display:block;color:#8f99a6;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.05em}
+.rg-detail-value{display:block;color:#e7edf3;margin-top:2px;overflow-wrap:anywhere}
+.rg-units{padding:8px 11px;border-top:1px solid #252832;color:#cbd4dc}
+.rg-signals{padding:8px 11px;border-top:1px solid #252832}
+.rg-signal{padding:5px 0;border-top:1px solid #20252c}.rg-signal:first-child{border-top:0}
+.rg-signal strong{color:#f4f6f8}.rg-signal-meta{color:#9ca7b2;font-size:10px;margin-top:2px}
+.rg-player{padding:8px 11px;border-top:1px solid #252832;background:#14161b}
+.rg-player audio{display:block;width:100%;height:30px}
+.rg-empty{display:flex;align-items:center;justify-content:center;min-height:220px;padding:20px;color:#aab0bd;text-align:center}
+@media(max-width:760px){.rg-detail-grid{grid-template-columns:1fr}}
+
+
+/* v7.65 — Douglas County incident pairing and RiverCom geolocated incident map */
+.rivercom-live-map-body{position:relative;overflow:hidden;background:#0b0c0f}
+.rivercom-live-map{width:100%;height:100%;min-height:520px}
+.rivercom-live-map-status{
+  position:absolute;top:10px;left:50%;transform:translateX(-50%);
+  z-index:600;background:rgba(8,12,15,.92);border:1px solid #40505a;
+  border-radius:4px;padding:5px 9px;font-size:11px;color:#e5edf2;white-space:nowrap
+}
+.rivercom-live-map-note{
+  position:absolute;left:8px;right:8px;bottom:8px;z-index:600;
+  background:rgba(8,12,15,.90);border:1px solid #40505a;border-radius:4px;
+  padding:5px 8px;font-size:10px;color:#dce5ea;pointer-events:none
+}
+.rivercom-map-popup{font-size:12px;line-height:1.35;min-width:210px}
+.rivercom-map-popup strong{font-size:14px}
+.rivercom-map-popup audio{width:100%;height:30px;margin-top:6px}
+
+/* v7.67 — public KOZI/KCSY Internet-stream health */
+.station-health-badge{display:inline-flex;align-items:center;margin-left:8px;padding:2px 7px;border-radius:999px;border:1px solid #4a525c;font-size:10px;font-weight:800;letter-spacing:.04em;vertical-align:middle;white-space:nowrap}
+.station-health-badge.live{color:#b8f7c7;border-color:#347746;background:rgba(31,100,50,.25)}
+.station-health-badge.dead-air{color:#ffe0a3;border-color:#9b6a20;background:rgba(120,75,10,.28)}
+.station-health-badge.off-air{color:#ffb4b4;border-color:#a13c3c;background:rgba(120,25,25,.30)}
+.station-health-badge.unknown{color:#d3d7dc;border-color:#5b626b;background:rgba(70,75,82,.25)}
+#stationStreamAlert{display:none;margin:0 0 10px;padding:8px 12px;border:1px solid #a13c3c;border-radius:5px;background:rgba(120,25,25,.28);color:#ffd0d0;font-size:12px;font-weight:700}
+#stationStreamAlert.visible{display:block}
+
+.copyright-notice{margin-top:3px;font-size:11px;opacity:.72;letter-spacing:.01em}
+</style>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%2064%2064%27%3E%0A%3Crect%20width%3D%2764%27%20height%3D%2764%27%20rx%3D%2712%27%20fill%3D%27%23171a20%27/%3E%0A%3Ccircle%20cx%3D%2732%27%20cy%3D%2733%27%20r%3D%276%27%20fill%3D%27%23ffb000%27/%3E%0A%3Cpath%20d%3D%27M22%2023a14%2014%200%200%200%200%2020M42%2023a14%2014%200%200%201%200%2020%27%20fill%3D%27none%27%20stroke%3D%27%23ffb000%27%20stroke-width%3D%275%27%20stroke-linecap%3D%27round%27/%3E%0A%3Cpath%20d%3D%27M14%2015a25%2025%200%200%200%200%2036M50%2015a25%2025%200%200%201%200%2036%27%20fill%3D%27none%27%20stroke%3D%27%23ffb000%27%20stroke-width%3D%274%27%20stroke-linecap%3D%27round%27/%3E%0A%3C/svg%3E" type="image/svg+xml">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="">
+
+</script>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>CHELAN SITUATIONAL AWARENESS</h1>
+      <div class="sub">Standalone HTML grid · Dashboard v7.81 · Page auto-refreshes every 30 minutes.</div>
+<div class="copyright-notice">© 2026 Tony Crosetto. All rights reserved.</div>
+    </div>
+  </header>
+
+  <main class="grid">
+
+      <div class="major-section-header environmental"><span>ENVIRONMENTAL - CURRENT CONDITIONS</span></div>
+
+      <section class="tile gauge-tile env-three-col">
+        <div class="tile-title">
+          <span>Temperature</span>
+          <span class="tile-actions">
+            <button type="button" onclick="loadWeatherGauges()">Reload</button>
+            <a target="_blank" rel="noopener" href="https://embed.windy.com/embed2.html?lat=47.8409698&lon=-120.0164591&detailLat=47.8409698&detailLon=-120.0164591&width=650&height=450&zoom=10&level=surface&overlay=temp&product=temp&menu=&message=true&marker=true&calendar=now&pressure=&type=map&location=coordinates&detail=&play=1&metricWind=default&metricTemp=default&radarRange=-1">Open</a>
+          </span>
+        </div>
+        <div class="tile-body">
+          <div class="gauge-card gauge-combo">
+            <div class="gauge-side">
+              <div class="gauge-face" id="tempGauge" style="--pct: 0;">
+                <div>
+                  <div class="gauge-value" id="tempValue">--</div>
+                  <div class="gauge-unit">°F</div>
+                </div>
+              </div>
+              <div class="gauge-detail" id="tempDetail">Loading...</div>
+            </div>
+            <div class="graph-side">
+              <canvas class="sparkline" id="tempChart" width="260" height="92"></canvas>
+              <div class="graph-caption">Last 24 hrs temperature</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="tile gauge-tile env-three-col">
+        <div class="tile-title">
+          <span>Wind</span>
+          <span class="tile-actions">
+            <button type="button" onclick="loadWeatherGauges()">Reload</button>
+            <a target="_blank" rel="noopener" href="https://embed.windy.com/embed2.html?lat=47.86&lon=-120.02&detailLat=47.86&detailLon=-120.02&zoom=8&level=surface&overlay=wind&product=ecmwf&menu=&message=true&marker=true&calendar=now&pressure=true&type=map&location=coordinates&detail=&metricWind=mph&metricTemp=%C2%B0F">Open</a>
+          </span>
+        </div>
+        <div class="tile-body">
+          <div class="gauge-card gauge-combo">
+            <div class="gauge-side">
+              <div class="gauge-face wind-compass" id="windGauge" style="--wind-deg: 0deg;">
+                <div class="wind-arrow"></div>
+                <div class="wind-center" id="windValue">--</div>
+              </div>
+              <div class="gauge-detail" id="windDetail">Loading...</div>
+            </div>
+            <div class="graph-side">
+              <canvas class="sparkline" id="windChart" width="260" height="92"></canvas>
+              <div class="graph-caption">Last 24 hrs wind speed</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="tile gauge-tile env-three-col">
+        <div class="tile-title">
+          <span>Precipitation</span>
+          <span class="tile-actions">
+            <button type="button" onclick="loadWeatherGauges()">Reload</button>
+            <a target="_blank" rel="noopener" href="https://embed.windy.com/embed2.html?lat=47.8409698&lon=-120.0164591&detailLat=47.8409698&detailLon=-120.0164591&width=650&height=450&zoom=10&level=surface&overlay=rain&product=rain&menu=&message=true&marker=true&calendar=now&pressure=&type=map&location=coordinates&detail=&play=1&metricWind=default&metricTemp=default&radarRange=-1">Open</a>
+          </span>
+        </div>
+        <div class="tile-body">
+          <div class="gauge-card gauge-combo">
+            <div class="gauge-side">
+              <div class="gauge-face" id="precipGauge" style="--pct: 0;">
+                <div>
+                  <div class="gauge-value" id="precipValue">--</div>
+                  <div class="gauge-unit">in</div>
+                </div>
+              </div>
+              <div class="gauge-detail" id="precipDetail">Loading...</div>
+            </div>
+            <div class="graph-side">
+              <canvas class="sparkline" id="precipChart" width="260" height="92"></canvas>
+              <div class="graph-caption">Last 24 hrs precipitation</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="tile gauge-tile env-three-col">
+        <div class="tile-title">
+          <span>Pressure</span>
+          <span class="tile-actions">
+            <button type="button" onclick="loadWeatherGauges()">Reload</button>
+            <a target="_blank" rel="noopener" href="https://www.windy.com/?pressure,47.8409698,-120.0164591,10">Open</a>
+          </span>
+        </div>
+        <div class="tile-body">
+          <div class="gauge-card gauge-combo">
+            <div class="gauge-side">
+              <div class="gauge-face" id="pressureGauge" style="--pct: 0;">
+                <div>
+                  <div class="gauge-value" id="pressureValue">--</div>
+                  <div class="gauge-unit">inHg</div>
+                </div>
+              </div>
+              <div class="gauge-detail" id="pressureDetail">Loading...</div>
+            </div>
+            <div class="graph-side">
+              <canvas class="sparkline" id="pressureChart" width="260" height="92"></canvas>
+              <div class="graph-caption">Last 24 hrs pressure</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="tile ticker-tile env-three-col weather-alerts-full">
+        <div class="tile-body"><div class="ticker-row">
+          <div class="ticker-label"><span>Weather Alerts</span><span class="ticker-last-updated" id="weatherTickerUpdated">--</span></div>
+          <div class="ticker-window" title="Hover to pause"><div class="ticker-track" id="weatherTickerTrack"><span class="ticker-item ticker-muted">Loading weather alerts and forecast...</span></div></div>
+        </div></div>
+      </section>
+
+      <section class="tile wide extra-tall row-start">
+        <div class="tile-title">
+          <span>Weather Radar</span>
+          <span class="tile-actions">
+            <button type="button" onclick="reloadTile(this)">Reload</button>
+            <a target="_blank" rel="noopener" href="https://www.windy.com/-Menu/menu?radar,47.762,-120.347,8">Open</a>
+          </span>
+        </div>
+        <div class="tile-body"><iframe src="https://embed.windy.com/embed2.html?lat=47.762&lon=-120.347&detailLat=47.762&detailLon=-120.347&zoom=8&level=surface&overlay=radar&product=radar&menu=&message=true&marker=true&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=mph&metricTemp=%C2%B0F&radarRange=-1" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe></div>
+      </section>
+
+      <section class="tile wide extra-tall">
+        <div class="tile-title">
+          <span>Air Quality</span>
+          <span class="tile-actions">
+            <button type="button" onclick="reloadTile(this)">Reload</button>
+               <a target="_blank" rel="noopener" href="https://www.airnow.gov/">Open</a>
+        </div>
+        <div class="tile-body"><iframe src="https://airqualitymap.ecology.wa.gov/"></iframe></div>
+      </section>
+
+      <section class="tile wide extra-tall">
+        <div class="tile-title">
+          <span>Wildfires</span>
+          <span class="tile-actions">
+            <button type="button" onclick="reloadEsriWildfire(this)">Reload</button>
+            <a target="_blank" rel="noopener" href="https://livingatlas.arcgis.com/wildfireaware/">Open</a>
+          </span>
+        </div>
+        <div class="tile-body esri-wildfire-body">
+          <iframe class="esri-wildfire-frame"
+            src="https://livingatlas.arcgis.com/wildfireaware/"
+            data-base-src="https://livingatlas.arcgis.com/wildfireaware/"
+            title="Esri Wildfire Aware"
+            loading="lazy"
+            referrerpolicy="no-referrer-when-downgrade"
+            allow="geolocation"></iframe>
+          <div class="esri-wildfire-fallback">
+            Esri Wildfire Aware provides current U.S. wildfire incidents and impact information.
+            If Esri blocks embedded display, use <b>Open Esri</b>.
+          </div>
+        </div>
+      </section>
+
+      <section class="tile wide extra-tall">
+        <div class="tile-title">
+          <span>Stream Flow</span>
+          <span class="tile-actions">
+            <button type="button" onclick="reloadTile(this)">Reload</button>
+            <a target="_blank" rel="noopener" href="https://dashboard.waterdata.usgs.gov/app/nwd/en/?aoi=state-wa&amp;view=default">Open</a>
+          </span>
+        </div>
+        <div class="tile-body"><iframe src="https://dashboard.waterdata.usgs.gov/app/nwd/en/?aoi=state-wa&amp;view=default" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe></div>
+      </section>
+
+      <section class="tile wide extra-tall">
+        <div class="tile-title">
+          <span>USDA NW Prescribed Burns Map</span>
+          <span class="tile-actions">
+            <button type="button" onclick="reloadTile(this)">Reload</button>
+               <a target="_blank" rel="noopener" href="https://experience.arcgis.com/experience/55ce8bfdea4345b6a06ae81d67e7d411">Open</a>
+        </div>
+        <div class="tile-body"><iframe src="https://experience.arcgis.com/experience/55ce8bfdea4345b6a06ae81d67e7d411"></iframe></div>
+      </section>
+
+      <section class="tile wide extra-tall">
+<div class="tile-title"><span>Severe Weather — Live Map</span><span class="tile-actions">
+<button type="button" onclick="loadSevereWeatherMap()">Reload</button>
+<a target="_blank" rel="noopener" href="https://www.esri.com/en-us/disaster-response/disasters/severe-weather">Open</a>
+</span></div>
+<div class="tile-body severe-weather-native-body">
+<div id="severeWeatherMap" class="severe-weather-native-map"></div>
+<div id="severeWeatherMapStatus" class="severe-weather-map-status">Loading severe-weather data…</div>
+<div class="severe-weather-legend"><span>Red = warnings</span><span>Amber = watches</span><span>Blue = advisories</span><span>● storm reports</span></div>
+</div></section>
+
+      <section class="tile wide extra-tall">
+        <div class="tile-title">
+          <span>Flooding — Esri Public Information Map</span>
+          <span class="tile-actions">
+            <button type="button" onclick="reloadEsriFlooding(this)">Reload</button>
+            <a target="_blank" rel="noopener" href="https://disasterresponse.maps.arcgis.com/apps/instant/basic/index.html?appid=d0bc9065603b404288e1840c006958de">Open</a>
+          </span>
+        </div>
+        <div class="tile-body esri-flooding-body">
+          <iframe class="esri-flooding-frame"
+            src="https://disasterresponse.maps.arcgis.com/apps/instant/basic/index.html?appid=d0bc9065603b404288e1840c006958de"
+            data-base-src="https://disasterresponse.maps.arcgis.com/apps/instant/basic/index.html?appid=d0bc9065603b404288e1840c006958de"
+            title="Esri Flooding Public Information Map"
+            loading="lazy"
+            referrerpolicy="no-referrer-when-downgrade"
+            allow="geolocation"></iframe>
+          <div class="esri-flooding-note">
+            Live flooding awareness: stream gauges, flood warning areas, precipitation and modeled/forecast river conditions.
+          </div>
+        </div>
+      </section>
+
+      <section class="tile wide extra-tall">
+        <div class="tile-title">
+          <span>Recent Earthquakes — Pacific Northwest</span>
+          <span class="tile-actions">
+            <button type="button" onclick="loadEarthquakeMap()">Reload</button>
+            <a target="_blank" rel="noopener" href="https://pnsn.org/earthquakes/recent">Open</a>
+          </span>
+        </div>
+        <div class="tile-body earthquake-map-body">
+          <div id="earthquakeMap" class="earthquake-map"></div>
+          <div id="earthquakeMapStatus" class="earthquake-map-status">Loading recent earthquakes…</div>
+          <div class="earthquake-legend">
+            <span><i class="earthquake-dot eq-small"></i>All magnitudes · 30 days</span>
+            <span><i class="earthquake-dot eq-medium"></i>M 2–2.9</span>
+            <span><i class="earthquake-dot eq-large"></i>M 3+</span>
+          </div>
+        </div>
+      </section>
+
+      
+
+    <div class="major-section-header infrastructure"><span>INCIDENTS / INFRASTRUCTURE</span></div>
+
+      <section class="tile ticker-tile">
+        <div class="tile-body"><div class="ticker-row">
+          <div class="ticker-label"><span>NCW Incidents</span><span class="ticker-last-updated" id="newsTickerUpdated">--</span></div>
+          <div class="ticker-window" title="Hover to pause"><div class="ticker-track" id="newsTickerTrack"><span class="ticker-item ticker-muted">Loading NCW incident and emergency updates...</span></div></div>
+        </div></div>
+      </section>
+
+<section class="tile radiant-glow-panel">
+        <div class="tile-title">
+          <span>Major Events — Radiant Glow</span>
+          <span class="tile-actions">
+            <button type="button" onclick="loadRadiantGlowMajorEvents(true)">Reload</button>
+            <span class="rg-status" id="radiantGlowStatus">Loading</span>
+          </span>
+        </div>
+        <div class="tile-body" id="radiantGlowBody">
+          <div class="rg-empty">Loading Chelan County major events…</div>
+        </div>
+      </section>
+
+<section class="tile wide extra-tall">
+  <div class="tile-title">
+    <span>Major Events Map</span>
+    <span class="tile-actions">
+      <button type="button" onclick="loadRiverComLiveMap(true)">Reload</button>
+      <span class="rivercom-status" id="riverComMapUpdated">Loading</span>
+    </span>
+  </div>
+  <div class="tile-body rivercom-live-map-body">
+    <div id="riverComLiveMap" class="rivercom-live-map"></div>
+    <div class="rivercom-live-map-status" id="riverComLiveMapStatus">Loading geolocated RiverCom incidents…</div>
+    <div class="rivercom-live-map-note">Only calls associated with a Radiant Glow incident location are plotted. Unlocated calls remain in RiverCom Activity.</div>
+  </div>
+</section>
+
+<section class="tile wide extra-tall">
+        <div class="tile-title">
+          <span>WSDOT Incident Map</span>
+          <span class="tile-actions">
+            <button type="button" onclick="reloadTile(this)">Reload</button>
+               <a target="_blank" rel="noopener" href="https://wsdot.com/Travel/Real-time/Map/?layers=traffic-flow%2Calert%2Cfire%2Ccamera&base=satellite&extent=-121.51305124245584%2C47.482106391856824%2C-118.87633249245485%2C48.19920845327678&fromLink=true">Open</a>
+        </div>
+        <div class="tile-body">
+          <div class="link-panel">
+            <div class="link-title">WSDOT Real-Time Incident Map</div>
+            <a class="big-link" target="_blank" rel="noopener" href="https://wsdot.com/Travel/Real-time/Map/?layers=traffic-flow%2Calert%2Cfire%2Ccamera&base=satellite&extent=-121.51305124245584%2C47.482106391856824%2C-118.87633249245485%2C48.19920845327678&fromLink=true">Open</a>
+            <p>WSDOT policy does not permit its web pages to be displayed inside external-site frames. Open the live WSDOT map in a separate tab.</p>
+          </div>
+        </div>
+      </section>
+
+<section class="tile wide extra-tall">
+        <div class="tile-title">
+          <span>Dept. of Interior Incident Map</span>
+          <span class="tile-actions">
+            <button type="button" onclick="reloadTile(this)">Reload</button>
+               <a target="_blank" rel="noopener" href="https://experience.arcgis.com/experience/634880e739884cf2a4d39771e86d5ac9?fbclid=IwY2xjawSeu15leHRuA2FlbQIxMABicmlkETFtNU1rY010TkE0RnRGWWRUc3J0YwZhcHBfaWQQMjIyMDM5MTc4ODIwMDg5MgABHiWZmxFiTQTOvqfMP3gKngiVt3GXth_d_vD0UqBvsqHpuEjDJQSgYfFQWWRS_aem_lyqEpJYRUbCBGaWelMNvMg">Open</a>
+        </div>
+        <div class="tile-body"><iframe src="https://experience.arcgis.com/experience/634880e739884cf2a4d39771e86d5ac9?fbclid=IwY2xjawSeu15leHRuA2FlbQIxMABicmlkETFtNU1rY010TkE0RnRGWWRUc3J0YwZhcHBfaWQQMjIyMDM5MTc4ODIwMDg5MgABHiWZmxFiTQTOvqfMP3gKngiVt3GXth_d_vD0UqBvsqHpuEjDJQSgYfFQWWRS_aem_lyqEpJYRUbCBGaWelMNvMg"></iframe></div>
+      </section>
+
+
+
+<section class="tile wide">
+  <div class="tile-title"><span>LocalTel Status</span>
+    <div class="tile-actions"><button type="button" onclick="reloadTile(this)">Reload</button><a class="btn" href="https://status.localtel.com/" target="_blank" rel="noopener noreferrer">Open</a></div></div>
+  <iframe
+    src="https://status.localtel.com/"
+    title="LocalTel Status"
+    loading="lazy"
+    referrerpolicy="no-referrer-when-downgrade">
+  </iframe>
+  
+</section>
+
+<section class="tile wide extra-tall">
+        <div class="tile-title">
+          <span>Chelan Co PUD Outages</span>
+          <span class="tile-actions">
+            <button type="button" onclick="reloadTile(this)">Reload</button>
+            <a target="_blank" rel="noopener" href="https://outages.chelanpud.org/">Open</a>
+          </span>
+        </div>
+        <div class="tile-body"><iframe src="https://outages.chelanpud.org/" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe></div>
+      </section>
+<section class="tile wide extra-tall">
+        <div class="tile-title">
+          <span>Douglas Co PUD Outages</span>
+          <span class="tile-actions">
+            <button type="button" onclick="forceReloadDouglasPudOutageMap()">Reload</button>
+            <a target="_blank" rel="noopener" href="https://ebill.douglaspud.org/maps/OutageWebMap/">Open</a>
+          </span>
+        </div>
+        <div class="tile-body"><iframe id="douglasPudOutageFrame" src="https://ebill.douglaspud.org/maps/OutageWebMap/" loading="eager" referrerpolicy="no-referrer-when-downgrade"></iframe></div>
+      </section>
+
+
+<section class="tile wide extra-tall">
+  <div class="tile-title">
+    <span>Okanogan Co PUD Outages</span>
+    <span class="tile-actions">
+      <button type="button" onclick="reloadTile(this)">Reload</button>
+      <a target="_blank" rel="noopener" href="https://okanoganpud.outagemap.coop/">Open</a>
+    </span>
+  </div>
+  <div class="tile-body">
+    <iframe
+      src="https://okanoganpud.outagemap.coop/"
+      title="Okanogan Co PUD Outages"
+      loading="lazy"
+      referrerpolicy="no-referrer-when-downgrade">
+    </iframe>
+  </div>
+</section>
+
+
+      
+
+      
+
+      
+
+<div class="major-section-header environmental"><span>ENVIRONMENTAL - FORECASTS</span></div>
+
+      <section class="tile">
+        <div class="tile-title">
+          <span>NWS Chelan 7-Day Forecast</span>
+          <span class="tile-actions">
+            <button type="button" onclick="loadNwsSevenDay()">Reload</button>
+            <a target="_blank" rel="noopener" href="https://forecast.weather.gov/MapClick.php?lat=47.8407&lon=-120.016">Open</a>
+          </span>
+        </div>
+        <div class="tile-body" id="nwsSevenDayBody">
+          <div class="forecast-status">Loading National Weather Service forecast…</div>
+        </div>
+      </section>
+<section class="tile wide wpc-pqpf-panel">
+        <div class="tile-title">
+          <span>WPC 24-Hour Precipitation Probability — ≥ 0.25&quot;</span>
+          <span class="tile-actions">
+            <button type="button" onclick="reloadWpcPqpf(this)">Reload</button>
+            <a target="_blank" rel="noopener" href="https://www.wpc.ncep.noaa.gov/pqpf/conus_hpc_pqpf.php?fpd=24">Open</a>
+          </span>
+        </div>
+        <div class="tile-body wpc-pqpf-body">
+          <div class="wpc-pqpf-map-window">
+            <iframe class="wpc-pqpf-frame"
+              src="https://www.wpc.ncep.noaa.gov/pqpf/conus_hpc_pqpf.php?fpd=24"
+              data-base-src="https://www.wpc.ncep.noaa.gov/pqpf/conus_hpc_pqpf.php?fpd=24"
+              title="WPC 24-Hour Probabilistic Precipitation Map"
+              loading="lazy"
+              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+              referrerpolicy="no-referrer-when-downgrade"></iframe>
+          </div>
+          <div class="wpc-pqpf-note">Map-focused view · WPC 24-hour probabilistic precipitation guidance.</div>
+        </div>
+              <div class="wpc-pqpf-hover-instruction">Move your mouse across the 24-hour periods to see a time-lapse of forecasts</div>
+</section>
+
+
+<section class="tile wide extra-tall">
+  <div class="tile-title">
+    <span>Windy Pressure Forecast</span>
+    <span class="tile-actions">
+      <button type="button" onclick="reloadTile(this)">Reload</button>
+      <a target="_blank" rel="noopener" href="https://www.windy.com/?pressure,47.840,-120.020,6,i:pressure">Open</a>
+    </span>
+  </div>
+  <div class="tile-body">
+    <iframe
+      src="https://embed.windy.com/embed2.html?lat=47.840&lon=-120.020&zoom=6&level=surface&overlay=pressure&menu=&message=&marker=true&calendar=now&pressure=true&type=map&location=coordinates&detail=&detailLat=47.840&detailLon=-120.020&metricWind=mph&metricTemp=%C2%B0F&radarRange=-1"
+      title="Windy Pressure Forecast"
+      loading="lazy"
+      referrerpolicy="no-referrer-when-downgrade"
+      allowfullscreen>
+    </iframe>
+  </div>
+</section>
+
+      <section class="tile">
+        <div class="tile-title">
+          <span>SPC Severe Weather Outlook — Inland Northwest</span>
+          <span class="tile-actions">
+            <button type="button" onclick="loadSpcOutlook()">Reload</button>
+            <a target="_blank" rel="noopener" href="https://www.spc.noaa.gov/products/outlook/day1otlk.html">Open</a>
+          </span>
+        </div>
+        <div class="tile-body spc-map-body">
+          <div id="spcMap" class="spc-map"></div>
+          <div id="spcMapStatus" class="spc-map-status">Loading NOAA SPC Day 1 outlook…</div>
+          <div class="spc-legend" aria-label="SPC risk legend">
+            <span><i class="spc-swatch tstm"></i>Thunderstorm</span>
+            <span><i class="spc-swatch mrgl"></i>Marginal</span>
+            <span><i class="spc-swatch slgt"></i>Slight</span>
+            <span><i class="spc-swatch enh"></i>Enhanced</span>
+            <span><i class="spc-swatch mdt"></i>Moderate</span>
+            <span><i class="spc-swatch high"></i>High</span>
+          </div>
+        </div>
+      </section>
+
+      
+
+      
+
+      
+
+      <section class="tile wide extra-tall">
+        <div class="tile-title">
+          <span>NWS National Significant River Flood Outlook</span>
+          <span class="tile-actions">
+            <button type="button" onclick="loadNationalFloodOutlook()">Reload</button>
+            <a target="_blank" rel="noopener" href="https://www.wpc.ncep.noaa.gov/nationalfloodoutlook/index.html">Open</a>
+          </span>
+        </div>
+        <div class="tile-body national-flood-body">
+          <div id="nationalFloodMap" class="national-flood-map"></div>
+          <div id="nationalFloodStatus" class="national-flood-status">Loading flood outlook…</div>
+          <div class="national-flood-legend">
+            <span><i class="nfo-swatch nfo-occurring"></i>Occurring / Imminent</span>
+            <span><i class="nfo-swatch nfo-likely"></i>Likely</span>
+            <span><i class="nfo-swatch nfo-possible"></i>Possible</span>
+          </div>
+        </div>
+      </section>
+
+      
+
+      <section class="tile">
+        <div class="tile-title">
+          <span>NOAA Tonight's Aurora Viewline Forecast</span>
+          <span class="tile-actions">
+            <button type="button" onclick="reloadForecastImage(this)">Reload</button>
+            <a target="_blank" rel="noopener" href="https://services.swpc.noaa.gov/experimental/images/aurora_dashboard/tonights_static_viewline_forecast.png">Open</a>
+          </span>
+        </div>
+        <div class="tile-body" style="background:#0b0c0f;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+          <img class="forecast-live-image" data-base-src="https://services.swpc.noaa.gov/experimental/images/aurora_dashboard/tonights_static_viewline_forecast.png" src="https://services.swpc.noaa.gov/experimental/images/aurora_dashboard/tonights_static_viewline_forecast.png" alt="NOAA Space Weather Prediction Center Tonight's Aurora Viewline Forecast" loading="lazy" style="width:100%;height:100%;object-fit:contain;">
+        </div>
+      </section>
+
+      
+
+      <section class="tile">
+        <div class="tile-title">
+          <span>CPC 30-Day Temperature Outlook</span>
+          <span class="tile-actions">
+            <button type="button" onclick="reloadCpcImage(this)">Reload</button>
+            <a target="_blank" rel="noopener" href="https://www.cpc.ncep.noaa.gov/products/predictions/30day/off14_temp.gif">Open</a>
+          </span>
+        </div>
+        <div class="tile-body" style="background:#0b0c0f;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+          <img class="cpc-live-image" data-base-src="https://www.cpc.ncep.noaa.gov/products/predictions/30day/off14_temp.gif" src="https://www.cpc.ncep.noaa.gov/products/predictions/30day/off14_temp.gif" alt="NOAA Climate Prediction Center 30-Day Temperature Outlook" loading="lazy" style="width:100%;height:100%;object-fit:contain;">
+        </div>
+      </section>
+<section class="tile">
+        <div class="tile-title">
+          <span>CPC 30-Day Precipitation Outlook</span>
+          <span class="tile-actions">
+            <button type="button" onclick="reloadCpcImage(this)">Reload</button>
+            <a target="_blank" rel="noopener" href="https://www.cpc.ncep.noaa.gov/products/predictions/30day/off14_prcp.gif">Open</a>
+          </span>
+        </div>
+        <div class="tile-body" style="background:#0b0c0f;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+          <img class="cpc-live-image" data-base-src="https://www.cpc.ncep.noaa.gov/products/predictions/30day/off14_prcp.gif" src="https://www.cpc.ncep.noaa.gov/products/predictions/30day/off14_prcp.gif" alt="NOAA Climate Prediction Center 30-Day Precipitation Outlook" loading="lazy" style="width:100%;height:100%;object-fit:contain;">
+        </div>
+      </section>
+<div class="major-section-header communications"><span>COMMUNICATIONS</span></div>
+
+      <div class="radio-caution">
+        ⚠ Automated radio transcription will contain errors or misheard words. Verify critical information through official sources or the live radio feed.
+      </div>
+<div id="stationStreamAlert" role="alert" aria-live="polite"></div>
+
+
+      <section class="tile ticker-tile radio-transcript">
+        <div class="tile-body"><div class="ticker-row">
+          <div class="ticker-label public-safety-label"><span>Public Safety Scanner</span><span class="radio-ticker-controls"><span class="ticker-last-updated" id="publicSafetyTickerUpdated">--</span><button class="ticker-reload" type="button" onclick="loadPublicSafetyTicker()">Reload</button></span></div>
+          <div class="ticker-window" title="Automated transcription may contain errors. When idle, scroll horizontally to review older transmissions."><div class="ticker-track" id="publicSafetyTickerTrack"><span class="ticker-item ticker-muted">Loading Chelan Public Safety radio transcripts...</span></div></div>
+        </div></div>
+      </section>
+
+<section class="tile ticker-tile radio-transcript">
+        <div class="tile-body"><div class="ticker-row">
+          <div class="ticker-label lcarc-label"><span>LCARC Repeater</span><span class="radio-ticker-controls"><span class="ticker-last-updated" id="lcarcTickerUpdated">--</span><button class="ticker-reload" type="button" onclick="loadLcarcTicker()">Reload</button></span></div>
+          <div class="ticker-window" title="Automated transcription may contain errors. When idle, scroll horizontally to review older transmissions."><div class="ticker-track" id="lcarcTickerTrack"><span class="ticker-item ticker-muted">Loading LCARC repeater transcripts...</span></div></div>
+        </div></div>
+      </section>
+
+<section class="tile rivercom-activity communications-monitor">
+        <div class="tile-title">
+          <span>RiverCom Activity</span>
+          <span class="tile-actions">
+            <span class="rivercom-status" id="rivercomActivityUpdated">Loading...</span>
+            <button type="button" onclick="loadRiverComActivity()">Reload</button>
+          </span>
+        </div>
+        <div class="tile-body">
+          <div class="rivercom-list" id="rivercomActivityList">
+            <div class="rivercom-empty">Loading recent dedicated RiverCom calls...</div>
+          </div>
+          <div class="rivercom-player" id="rivercomPlayerBox">
+            <div class="rivercom-player-label" id="rivercomNowPlaying">RiverCom audio</div>
+            <audio id="rivercomAudioPlayer" controls preload="none"></audio>
+          </div>
+        </div>
+      </section>
+
+<section class="tile radio communications-monitor">
+        <div class="tile-title">
+          <span>Chelan Public Safety Radio Feed</span>
+          <span class="tile-actions">
+            <button type="button" onclick="reloadTile(this)">Reload</button>
+            <a target="_blank" rel="noopener" href="https://www.broadcastify.com/listen/feed/45199">Open</a>
+          </span>
+        </div>
+        <div class="tile-body"><iframe src="https://www.broadcastify.com/listen/feed/45199" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe></div>
+      </section>
+
+<section class="tile rivercom-activity communications-monitor">
+        <div class="tile-title">
+          <span>LCARC Repeater Activity</span>
+          <span class="tile-actions">
+            <span class="rivercom-status" id="lcarcCallsActivityUpdated">Loading...</span>
+            <button type="button" onclick="loadLcarcCallsActivity()">Reload</button>
+          </span>
+        </div>
+        <div class="tile-body">
+          <div class="rivercom-list" id="lcarcCallsActivityList">
+            <div class="rivercom-empty">Loading recent LCARC repeater calls...</div>
+          </div>
+          <div class="rivercom-player" id="lcarcCallsPlayerBox">
+            <div class="rivercom-player-label" id="lcarcCallsNowPlaying">LCARC repeater audio</div>
+            <audio id="lcarcCallsAudioPlayer" controls preload="none"></audio>
+          </div>
+        </div>
+      </section>
+
+<section class="tile radio communications-monitor">
+        <div class="tile-title">
+          <span>LCARC Repeater Radio Feed</span>
+          <span class="tile-actions">
+            <button type="button" onclick="reloadTile(this)">Reload</button>
+            <a target="_blank" rel="noopener" href="https://www.broadcastify.com/listen/feed/45373">Open</a>
+          </span>
+        </div>
+        <div class="tile-body"><iframe src="https://www.broadcastify.com/listen/feed/45373" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe></div>
+      </section>
+
+<section class="tile radio communications-monitor">
+        <div class="tile-title">
+          <span>Chelan Fire/Police/EMS Radio Feed</span>
+          <span class="tile-actions">
+            <button type="button" onclick="reloadTile(this)">Reload</button>
+            <a target="_blank" rel="noopener" href="https://www.broadcastify.com/listen/feed/24557">Open</a>
+          </span>
+        </div>
+        <div class="tile-body"><iframe src="https://www.broadcastify.com/listen/feed/24557" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe></div>
+      </section>
+
+<section class="tile radio communications-monitor">
+        <div class="tile-title">
+          <span>KOZI FM <span id="koziStreamStatus" class="station-health-badge unknown">CHECKING</span></span>
+          <span class="tile-actions">
+            <button type="button" onclick="reloadTile(this)">Reload</button>
+            <a target="_blank" rel="noopener" href="https://www.kozi.com/">Open</a>
+          </span>
+        </div>
+        <div class="tile-body"><iframe src="https://player.aiir.com/kozi-fm/" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe></div>
+      </section>
+
+<section class="tile radio communications-monitor">
+        <div class="tile-title">
+          <span>KCSY Sunny FM <span id="kcsyStreamStatus" class="station-health-badge unknown">CHECKING</span></span>
+          <span class="tile-actions">
+            <button type="button" onclick="reloadTile(this)">Reload</button>
+            <a target="_blank" rel="noopener" href="https://kcsyfm.com/wp-content/uploads/2025/12/popup-player2.html">Open</a>
+          </span>
+        </div>
+        <div class="tile-body"><iframe src="https://kcsyfm.com/wp-content/uploads/2025/12/popup-player2.html" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe></div>
+      </section>
+
+
+
+<section class="tile radio communications-monitor krem-localnow-panel">
+        <div class="tile-title">
+          <span>KREM 2 Spokane — Local Now</span>
+          <span class="tile-actions">
+            <a target="_blank" rel="noopener" href="https://localnow.com/channels/krem-hyperlocal">Open</a>
+          </span>
+        </div>
+        <div class="tile-body krem-localnow-launch">
+          <div class="krem-localnow-launch-inner">
+            <div class="krem-localnow-live-badge">LOCAL LIVE NEWS</div>
+            <div class="krem-localnow-launch-title">KREM 2 Spokane</div>
+            <div class="krem-localnow-launch-copy">Open the KREM Hyperlocal stream directly on Local Now.</div>
+            <a class="krem-localnow-watch-button" target="_blank" rel="noopener" href="https://localnow.com/channels/krem-hyperlocal">Watch Live on Local Now</a>
+            <div class="krem-localnow-launch-note">Local Now does not reliably support playback inside an embedded dashboard frame.</div>
+          </div>
+        </div>
+      </section>
+
+<div class="major-section-header surveillance"><span>SURVEILLANCE</span></div>
+
+      <section class="tile camera">
+        <div class="tile-title">
+          <span>Downtown Chelan</span>
+          <span class="tile-actions">
+            <button type="button" onclick="reloadTile(this)">Reload</button>
+            <a target="_blank" rel="noopener" href="https://lakechelancams.com/chelan-realty-cam/">Open</a>
+          </span>
+        </div>
+        <div class="tile-body"><a class="image-link" target="_blank" rel="noopener" href="https://s30.ipcamlive.com/streams/1eo4bsiz08trz2und/snapshot.jpg">
+  <img class="camera-img contain" data-src="https://g1.ipcamlive.com/player/snapshot.php?alias=603f630e33844" src="https://g1.ipcamlive.com/player/snapshot.php?alias=603f630e33844" alt="Downtown Chelan" loading="lazy">
+</a></div>
+      </section>
+
+<section class="tile wide wapato-bear-webcam-panel">
+        <div class="tile-title">
+          <span>Wapato Point — Bear Mountain Webcam</span>
+          <span class="tile-actions">
+            <button type="button" onclick="reloadWapatoBearCam(this)">Reload</button>
+            <a target="_blank" rel="noopener" href="https://northshorerealtywa.com/web-cams/">Open</a>
+          </span>
+        </div>
+        <div class="tile-body wapato-bear-webcam-body">
+          <img class="wapato-bear-webcam-image"
+            src="https://webcam.wapatopoint.com/webcam3.jpg"
+            data-base-src="https://webcam.wapatopoint.com/webcam3.jpg"
+            alt="Wapato Point from Bear Mountain webcam">
+        </div>
+      </section>
+
+<section class="tile wide twentyfive-mile-webcam-panel">
+        <div class="tile-title">
+          <span>25 Mile Creek State Park Webcam</span>
+          <span class="tile-actions">
+            <button type="button" onclick="reloadTwentyFiveMileCam(this)">Reload</button>
+            <a target="_blank" rel="noopener" href="https://seechelan.com/25Mile/Cam01.jpg">Open</a>
+          </span>
+        </div>
+        <div class="tile-body twentyfive-mile-webcam-body">
+          <img class="twentyfive-mile-webcam-image"
+            src="https://seechelan.com/25Mile/Cam01.jpg"
+            data-base-src="https://seechelan.com/25Mile/Cam01.jpg"
+            alt="25 Mile Creek State Park webcam">
+        </div>
+      </section>
+
+<section class="tile camera">
+        <div class="tile-title">
+          <span>Stehekin Cam</span>
+          <span class="tile-actions">
+            <button type="button" onclick="reloadTile(this)">Reload</button>
+            <a target="_blank" rel="noopener" href="https://lakechelancams.com/stehekin-cams/">Open</a>
+          </span>
+        </div>
+        <div class="tile-body">
+          <a class="image-link" target="_blank" rel="noopener" href="https://www.isenhart.com/StehekinCams/StehekinCam001.jpg">
+            <img class="camera-img contain" data-src="https://www.isenhart.com/StehekinCams/StehekinCam001.jpg" src="https://www.isenhart.com/StehekinCams/StehekinCam001.jpg" alt="Stehekin Cam" loading="lazy">
+          </a>
+        </div>
+      </section>
+
+<section class="tile camera">
+        <div class="tile-title">
+          <span>Blewett Pass</span>
+          <span class="tile-actions">
+            <button type="button" onclick="reloadTile(this)">Reload</button>
+            <a target="_blank" rel="noopener" href="https://wsdot.com/Travel/Real-time/Map/layer/camera">Open</a>
+          </span>
+        </div>
+        <div class="tile-body"><img class="camera-img contain" data-src="https://images.wsdot.wa.gov/nc/097vc16375.jpg?a=1781910155050" src="https://images.wsdot.wa.gov/nc/097vc16375.jpg?a=1781910155050" alt="Blewett Pass" loading="lazy"></div>
+      </section>
+
+<section class="tile camera">
+        <div class="tile-title">
+          <span>Snoqualmie Pass</span>
+          <span class="tile-actions">
+            <button type="button" onclick="reloadTile(this)">Reload</button>
+            <a target="_blank" rel="noopener" href="https://wsdot.com/Travel/Real-time/Map/layer/camera">Open</a>
+          </span>
+        </div>
+        <div class="tile-body"><img class="camera-img contain" data-src="https://images.wsdot.wa.gov/sc/090VC05200.jpg?a=1781910644609" src="https://images.wsdot.wa.gov/sc/090VC05200.jpg?a=1781910644609" alt="Snoqualmie Pass" loading="lazy"></div>
+      </section>
+
+<section class="tile camera">
+        <div class="tile-title">
+          <span>Stevens Pass</span>
+          <span class="tile-actions">
+            <button type="button" onclick="reloadTile(this)">Reload</button>
+            <a target="_blank" rel="noopener" href="https://wsdot.com/Travel/Real-time/Map/layer/camera">Open</a>
+          </span>
+        </div>
+        <div class="tile-body"><img class="camera-img contain" data-src="https://images.wsdot.wa.gov/nc/002vc06458.jpg?a=1781910553116" src="https://images.wsdot.wa.gov/nc/002vc06458.jpg?a=1781910553116" alt="Stevens Pass" loading="lazy"></div>
+      </section>
+
+<section class="tile camera">
+        <div class="tile-title">
+          <span>US97/97A</span>
+          <span class="tile-actions">
+            <button type="button" onclick="reloadTile(this)">Reload</button>
+            <a target="_blank" rel="noopener" href="https://wsdot.com/Travel/Real-time/Map/layer/camera">Open</a>
+          </span>
+        </div>
+        <div class="tile-body"><img class="camera-img contain" data-src="https://images.wsdot.wa.gov/nc/097vc24013.jpg?a=1781977302640" src="https://images.wsdot.wa.gov/nc/097vc24013.jpg?a=1781977302640" alt="US97/97A" loading="lazy"></div>
+      </section>
+
+<section class="tile camera">
+        <div class="tile-title">
+          <span>US2/Eastmont</span>
+          <span class="tile-actions">
+            <button type="button" onclick="reloadTile(this)">Reload</button>
+            <a target="_blank" rel="noopener" href="https://wsdot.com/Travel/Real-time/Map/layer/camera">Open</a>
+          </span>
+        </div>
+        <div class="tile-body"><img class="camera-img contain" data-src="https://images.wsdot.wa.gov/nc/028vc00001.jpg?a=1781977842011" src="https://images.wsdot.wa.gov/nc/028vc00001.jpg?a=1781977842011" alt="US2/Eastmont" loading="lazy"></div>
+      </section>
+
+<section class="tile camera">
+        <div class="tile-title">
+          <span>US2/US97 Wenatchee</span>
+          <span class="tile-actions">
+            <button type="button" onclick="reloadTile(this)">Reload</button>
+            <a target="_blank" rel="noopener" href="https://wsdot.com/Travel/Real-time/Map/layer/camera">Open</a>
+          </span>
+        </div>
+        <div class="tile-body"><img class="camera-img contain" data-src="https://images.wsdot.wa.gov/nc/002vc11875.jpg?a=1781977900075" src="https://images.wsdot.wa.gov/nc/002vc11875.jpg?a=1781977900075" alt="US2/US97 Wenatchee" loading="lazy"></div>
+      </section>
+
+<section class="tile dnr-panel">
+        <div class="tile-title">
+          <span>DNR Wildfire Camera - Top of Chelan Butte</span>
+          <span class="tile-actions">
+            <a class="dnr-open-link" target="_blank" rel="noopener" href="https://wadnr.wildfirewatch.com/station/3290b7ab65ec4cc28b5d81308c04bc82">Open</a>
+          </span>
+        </div>
+        <div class="tile-body">
+          <div class="link-panel">
+            <div class="link-title">DNR Chelan Butte Wildfire Camera</div>
+            <a class="big-link dnr-open-link" target="_blank" rel="noopener" href="https://wadnr.wildfirewatch.com/station/3290b7ab65ec4cc28b5d81308c04bc82">Open</a>
+            <p>Once open, click the “View Panorama” button.</p>
+          </div>
+        </div>
+      </section>
+
+<section class="tile radio">
+        <div class="tile-title">
+          <span>flightradar24 Live Air Traffic</span>
+          <span class="tile-actions">
+            <button type="button" onclick="reloadTile(this)">Reload</button>
+            <a target="_blank" rel="noopener" href="https://www.flightradar24.com/48.02,-120.62/7">Open</a>
+          </span>
+        </div>
+        <div class="tile-body"><iframe src="https://www.flightradar24.com/48.02,-120.62/7" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe></div>
+      </section>
+</main>
+
+  <div class="notice">
+    If a tile is blank or says refused to connect, that source blocks iframe embedding. Use the Open link for that panel.
+    WSDOT still images may cache; Reload updates image URLs with a fresh timestamp.
+    <br>Radio transcript tickers are automated and may contain transcription errors. Verify critical information through official sources. Radio transcript tickers remain stationary at all times. When a new transmission arrives, the ticker returns to the newest item without animation. Scroll horizontally to review older displayed transmissions.
+  </div>
+<script>
+
+
+    const NWS_LAT = 47.8409698;
+    const NWS_LON = -120.0164591;
+    function htmlEscape(v){return String(v==null?"":v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");}
+    function setTicker(trackId, updatedId, items, emptyText){
+      const track=document.getElementById(trackId), updated=document.getElementById(updatedId);
+      if(!track)return;
+      const arr=(Array.isArray(items)&&items.length)?items:[{label:emptyText,url:null,css:"ticker-muted",icon:"ℹ️"}];
+      const markup=arr.map(item=>{
+        const cls=("ticker-item "+(item.css||"")).trim();
+        const text=(item.icon?item.icon+" ":"")+item.label;
+        return item.url?'<a class="'+cls+'" target="_blank" rel="noopener" href="'+htmlEscape(item.url)+'">'+htmlEscape(text)+'</a>':'<span class="'+cls+'">'+htmlEscape(text)+'</span>';
+      }).join('<span class="ticker-muted">|</span>');
+      track.innerHTML=markup+'<span class="ticker-muted">|</span>'+markup;
+      if(updated)updated.textContent=new Date().toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});
+    }
+    function alertSeverityClass(e){e=String(e||"").toLowerCase();if(e.includes("warning")||e.includes("evacuation"))return"ticker-severity-warning";if(e.includes("watch"))return"ticker-severity-watch";if(e.includes("advisory")||e.includes("statement"))return"ticker-severity-advisory";return"";}
+    async function fetchJsonWithTimeout(url,ms=9000){
+      const c=new AbortController();const t=setTimeout(()=>c.abort(),ms);
+      try{const r=await fetch(url,{cache:"no-store",signal:c.signal});if(!r.ok)throw new Error(r.status+" "+r.statusText);return await r.json();}finally{clearTimeout(t);}
+    }
+    async function loadWeatherTicker(){
+      const items=[];
+      try{
+        const alerts=await fetchJsonWithTimeout("https://api.weather.gov/alerts/active?point="+NWS_LAT+","+NWS_LON);
+        (Array.isArray(alerts.features)?alerts.features:[]).slice(0,8).forEach(f=>{
+          const p=f.properties||{}, event=p.event||"Weather Alert", ends=p.ends?new Date(p.ends):null;
+          const until=(ends&&!Number.isNaN(ends.getTime()))?" until "+ends.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"}):"";
+          items.push({label:event+until,url:p.uri||"https://www.weather.gov/otx/",css:alertSeverityClass(event),icon:"⚠️"});
+        });
+        const points=await fetchJsonWithTimeout("https://api.weather.gov/points/"+NWS_LAT+","+NWS_LON);
+        const forecastUrl=points&&points.properties&&points.properties.forecast;
+        if(forecastUrl){
+          const forecast=await fetchJsonWithTimeout(forecastUrl);
+          ((forecast&&forecast.properties&&forecast.properties.periods)||[]).slice(0,4).forEach(p=>{
+            items.push({label:p.name+": "+p.shortForecast+"; "+p.temperature+"°"+p.temperatureUnit+"; wind "+p.windSpeed+" "+p.windDirection,url:"https://forecast.weather.gov/MapClick.php?lat=47.8409698&lon=-120.0164591",css:"",icon:"🌤️"});
+          });
+        }
+        setTicker("weatherTickerTrack","weatherTickerUpdated",items,"No active weather alerts. Forecast feed available.");
+      }catch(err){console.error("Weather ticker failed",err);setTicker("weatherTickerTrack","weatherTickerUpdated",[{label:"Weather ticker unavailable: "+err.message,url:"https://www.weather.gov/otx/",css:"ticker-severity-advisory",icon:"⚠️"}],"Weather ticker unavailable.");}
+    }
+    async function loadNewsTicker(){
+      const fallback=[{label:"Chelan County Emergency Management",url:"https://www.co.chelan.wa.us/emergency-management",icon:"🚨"},{label:"Douglas County WA Emergency Management",url:"https://www.douglascountywa.net/251/Emergency-Management",icon:"🚨"},{label:"WSDOT real-time travel alerts",url:"https://wsdot.com/Travel/Real-time/Map/",icon:"🚧"},{label:"WA DNR Wildfire Intel",url:"https://www.dnr.wa.gov/Wildfires",icon:"🔥"},{label:"Chelan PUD outages",url:"https://outages.chelanpud.org/",icon:"⚡"},{label:"Douglas PUD outages",url:"https://ebill.douglaspud.org/maps/OutageWebMap/",icon:"⚡"}];
+      try{
+        const url="https://pub-70cc508d7f6142f0ba77983b538ba3df.r2.dev/ncw_incidents.json?t="+Date.now();
+        const data=await fetchJsonWithTimeout(url,9000);
+        const filtered=(Array.isArray(data.items)?data.items:[]).slice(0,10).map(item=>({label:item.title||"NCW incident update",url:item.source_url||"",css:"",icon:"📰"}));
+        setTicker("newsTickerTrack","newsTickerUpdated",filtered.length?filtered:fallback,"NCW incident ticker unavailable. Use emergency links.");
+      }catch(err){console.error("News ticker failed",err);setTicker("newsTickerTrack","newsTickerUpdated",fallback,"NCW incident ticker unavailable. Use emergency links.");}
+    }
+
+
+
+    const RADIO_PUBLIC_BASE = "https://pub-70cc508d7f6142f0ba77983b538ba3df.r2.dev";
+    const PUBLIC_SAFETY_TRANSCRIPT_URL = RADIO_PUBLIC_BASE + "/chelan_public_safety.json";
+    const LCARC_TRANSCRIPT_URL = RADIO_PUBLIC_BASE + "/lcarc.json";
+    const RIVERCOM_ACTIVITY_URL = RADIO_PUBLIC_BASE + "/rivercom_activity.json";
+    const LCARC_CALLS_ACTIVITY_URL = RADIO_PUBLIC_BASE + "/lcarc_calls_activity.json";
+    const RADIANT_GLOW_MAJOR_EVENTS_URL = RADIO_PUBLIC_BASE + "/radiant_glow_major_events.json";
+    const RADIO_STATION_STATUS_URL = RADIO_PUBLIC_BASE + "/radio_station_status.json";
+    const RADIO_TICKER_MAX_ITEMS = 10;
+    const RIVERCOM_ACTIVITY_MAX_ITEMS = 100;
+    const LCARC_CALLS_ACTIVITY_MAX_ITEMS = 100;
+    const RIVERCOM_STALE_MINUTES = 30;
+    const LCARC_CALLS_STALE_MINUTES = 180;
+    const PUBLIC_SAFETY_STALE_MINUTES = 30;
+    const LCARC_STALE_MINUTES = 180;
+
+    function radioAgeMinutes(isoTime){
+      const t = new Date(isoTime).getTime();
+      if(!Number.isFinite(t)) return null;
+      return Math.max(0, Math.round((Date.now() - t) / 60000));
+    }
+
+    function radioTimeLabel(item){
+      if(item && item.display_time) return item.display_time;
+      const d = new Date(item && item.time);
+      if(Number.isNaN(d.getTime())) return "";
+      return d.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});
+    }
+
+    function radioTickerItems(data, feedName, staleMinutes){
+      const rows = Array.isArray(data && data.items) ? data.items : [];
+      const usable = rows
+        .filter(item => item && typeof item.text === "string" && item.text.trim())
+        .slice(0, RADIO_TICKER_MAX_ITEMS);
+
+      if(!usable.length){
+        return [{
+          label:"No recent "+feedName+" transcripts.",
+          url:null,
+          css:"ticker-muted",
+          icon:"📻"
+        }];
+      }
+
+      const newestAge = radioAgeMinutes(usable[0].time);
+      const result = usable.map(item => {
+        const time = radioTimeLabel(item);
+        const text = item.text.trim();
+        return {
+          label:(time ? time+"  " : "") + text,
+          url:null,
+          css:"",
+          icon:"📻"
+        };
+      });
+
+      if(newestAge !== null && newestAge > staleMinutes){
+        result.unshift({
+          label:"No recent "+feedName+" traffic — latest transcript is "+newestAge+" min old.",
+          url:null,
+          css:"radio-ticker-stale",
+          icon:"ℹ️"
+        });
+      }
+      return result;
+    }
+
+
+    const radioTickerState = {};
+    function buildTickerMarkup(items){
+      return items.map(item=>{
+        const cls=("ticker-item "+(item.css||"")).trim();
+        const text=(item.icon?item.icon+" ":"")+item.label;
+        return item.url?'<a class="'+cls+'" target="_blank" rel="noopener" href="'+htmlEscape(item.url)+'">'+htmlEscape(text)+'</a>':'<span class="'+cls+'">'+htmlEscape(text)+'</span>';
+      }).join('<span class="ticker-muted">|</span>');
+    }
+
+    function setRadioTickerEventDriven(trackId, updatedId, items, emptyText, newestKey){
+      const track=document.getElementById(trackId);
+      if(!track) return false;
+
+      const normalized=(Array.isArray(items)&&items.length)?items:[{label:emptyText,url:null,css:"ticker-muted",icon:"ℹ️"}];
+      const signature=JSON.stringify(normalized.map(item=>({
+        label:item.label||"",
+        url:item.url||"",
+        css:item.css||"",
+        icon:item.icon||""
+      })));
+
+      const prev=radioTickerState[trackId]||{};
+      const contentChanged=prev.signature!==signature;
+      const newTransmission=Boolean(prev.newestKey && newestKey && prev.newestKey!==newestKey);
+
+      /* Radio tickers never auto-scroll. The user may scroll history manually when stationary. */
+      track.classList.remove("radio-event-scroll");
+      track.style.animation="none";
+      track.style.transform="translateX(0)";
+
+      if(contentChanged){
+        track.innerHTML=buildTickerMarkup(normalized);
+      }
+
+      /* On a new transmission, return the manual scroll position to the newest item. */
+      if(newTransmission && track.parentElement){
+        track.parentElement.scrollLeft=0;
+      }
+
+      radioTickerState[trackId]={signature,newestKey};
+      return contentChanged || newTransmission;
+    }
+
+    function setRadioTickerUpdated(updatedId, data, staleMinutes){
+      const el = document.getElementById(updatedId);
+      if(!el) return;
+      el.classList.remove("ticker-source-stale");
+      const rows = Array.isArray(data && data.items) ? data.items : [];
+      if(!rows.length || !rows[0] || !rows[0].time){
+        el.textContent = "No traffic";
+        el.classList.add("ticker-source-stale");
+        return;
+      }
+      const age = radioAgeMinutes(rows[0].time);
+      const t = radioTimeLabel(rows[0]);
+      if(age !== null && age > staleMinutes){
+        el.textContent = "STALE · "+age+"m · "+(t || "unknown");
+        el.classList.add("ticker-source-stale");
+      }else{
+        el.textContent = "LIVE · "+(t || "Updated");
+      }
+    }
+
+
+    function rgTsDate(ts){
+      const n=Number(ts);
+      if(!Number.isFinite(n)) return null;
+      const d=new Date(n);
+      return Number.isNaN(d.getTime())?null:d;
+    }
+    function rgRelativeAge(ts){
+      const d=rgTsDate(ts); if(!d) return "Time unavailable";
+      const mins=Math.max(0,Math.round((Date.now()-d.getTime())/60000));
+      if(mins<1) return "just now";
+      if(mins<60) return mins+" min ago";
+      const hrs=Math.floor(mins/60), rem=mins%60;
+      if(hrs<24) return hrs+" hr"+(hrs===1?"":"s")+(rem?" "+rem+" min":"")+" ago";
+      const days=Math.floor(hrs/24);
+      return days+" day"+(days===1?"":"s")+" ago";
+    }
+    function rgAudioUrl(audio){
+      if(!audio) return "";
+      if(audio.url) return String(audio.url);
+      if(audio.bucket && audio.key) return "https://"+String(audio.bucket).replace(/^https?:\/\//,"").replace(/\/$/,"")+"/"+String(audio.key).replace(/^\//,"");
+      return "";
+    }
+    function renderRadiantGlowMajorEvents(data){
+      const body=document.getElementById("radiantGlowBody");
+      const status=document.getElementById("radiantGlowStatus");
+      if(!body||!status) return;
+      const threads=Array.isArray(data&&data.threads)?data.threads:[];
+      status.className="rg-status rg-live";
+      status.textContent="LIVE · "+threads.length+" incident"+(threads.length===1?"":"s");
+      if(!threads.length){
+        body.innerHTML='<div class="rg-empty">No current Radiant Glow major-event threads for Chelan County Fire.</div>';
+        return;
+      }
+      body.innerHTML='<div class="rg-live-wrap">'+threads.map(thread=>{
+        const p=thread&&thread.primary?thread.primary:{};
+        const signals=Array.isArray(thread&&thread.signals)?thread.signals:[];
+        const units=Array.isArray(p.units)?p.units:[];
+        const groups=Array.isArray(p.groups)?p.groups.map(g=>g&&g.display).filter(Boolean):[];
+        const channel=p.groupDisplay||groups.join(", ")||"Unknown";
+        const audioUrl=rgAudioUrl(p.audio);
+        const when=rgTsDate(p.ts);
+        const timeText=when?when.toLocaleString([],{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}):"Unknown time";
+        const signalHtml=signals.length?signals.map(sig=>{
+          const sd=rgTsDate(sig.ts);
+          const st=sd?sd.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"}):"";
+          return '<div class="rg-signal"><strong>'+htmlEscape(sig.typeLine||sig.type||"Major Event")+'</strong>'+
+            '<div class="rg-signal-meta">'+htmlEscape([st,sig.matchedPhrase?('trigger: '+sig.matchedPhrase):"",sig.groupDisplay||""].filter(Boolean).join(" · "))+'</div></div>';
+        }).join(""):'<div class="rg-signal"><span class="ticker-muted">No additional progression signals.</span></div>';
+        return '<div class="rg-incident-card">'+
+          '<div class="rg-incident-head"><div class="rg-incident-type">'+htmlEscape(p.typeLine||p.type||"Major Event")+'</div>'+
+          '<div class="rg-level">Level '+htmlEscape(p.level||"?")+'</div></div>'+
+          '<div class="rg-location">'+htmlEscape(p.location||"Location not provided")+'</div>'+
+          '<div class="rg-age">'+htmlEscape(rgRelativeAge(p.ts))+' · '+htmlEscape(timeText)+'</div>'+
+          '<div class="rg-detail-grid">'+
+            '<div class="rg-detail"><span class="rg-detail-label">Channel</span><span class="rg-detail-value">'+htmlEscape(channel)+'</span></div>'+
+            '<div class="rg-detail"><span class="rg-detail-label">Trigger phrase</span><span class="rg-detail-value">'+htmlEscape(p.matchedPhrase||"—")+'</span></div>'+
+            '<div class="rg-detail"><span class="rg-detail-label">Event</span><span class="rg-detail-value">'+htmlEscape(p.sourceEventType||"—")+'</span></div>'+
+            '<div class="rg-detail"><span class="rg-detail-label">Signals</span><span class="rg-detail-value">'+htmlEscape(String(thread.signalCount||signals.length||1))+'</span></div>'+
+          '</div>'+
+          '<div class="rg-units"><span class="rg-detail-label">Units</span>'+htmlEscape(units.length?units.join(", "):"Not provided")+'</div>'+
+          '<div class="rg-signals"><span class="rg-detail-label">Incident progression</span>'+signalHtml+'</div>'+
+          (audioUrl?'<div class="rg-player"><span class="rg-detail-label">Radiant Glow audio</span><audio controls preload="none" src="'+htmlEscape(audioUrl)+'"></audio></div>':"")+
+        '</div>';
+      }).join("")+'</div>';
+    }
+    async function loadRadiantGlowMajorEvents(force){
+      const status=document.getElementById("radiantGlowStatus");
+      if(status){status.className="rg-status";status.textContent=force?"Reloading":"Loading";}
+      try{
+        const data=await fetchJsonWithTimeout(RADIANT_GLOW_MAJOR_EVENTS_URL+"?t="+Date.now(),9000);
+        renderRadiantGlowMajorEvents(data);
+      }catch(err){
+        console.error("Radiant Glow major events failed",err);
+        if(status){status.className="rg-status rg-error";status.textContent="UNAVAILABLE";}
+        const body=document.getElementById("radiantGlowBody");
+        if(body) body.innerHTML='<div class="rg-empty">Radiant Glow major-event feed is temporarily unavailable.</div>';
+      }
+    }
+
+    async function loadPublicSafetyTicker(){
+      try{
+        const data = await fetchJsonWithTimeout(PUBLIC_SAFETY_TRANSCRIPT_URL+"?t="+Date.now(),9000);
+        const psRows=Array.isArray(data&&data.items)?data.items:[];
+        const psNewest=psRows.length?(psRows[0].time||psRows[0].display_time||psRows[0].text||""):"";
+        setRadioTickerEventDriven(
+          "publicSafetyTickerTrack",
+          "publicSafetyTickerUpdated",
+          radioTickerItems(data,"Public Safety",PUBLIC_SAFETY_STALE_MINUTES),
+          "No recent Public Safety transcripts.",
+          psNewest
+        );
+        setRadioTickerUpdated("publicSafetyTickerUpdated",data,PUBLIC_SAFETY_STALE_MINUTES);
+      }catch(err){
+        console.error("Public Safety transcript ticker failed",err);
+        const status=document.getElementById("publicSafetyTickerUpdated");
+        if(status){status.textContent="UNAVAILABLE";status.classList.add("ticker-source-stale");}
+        setRadioTickerEventDriven(
+          "publicSafetyTickerTrack",
+          "publicSafetyTickerUpdated",
+          [{label:"Public Safety transcript feed unavailable.",url:null,css:"ticker-severity-advisory",icon:"⚠️"}],
+          "Public Safety transcript feed unavailable.",
+          ""
+        );
+      }
+    }
+
+    async function loadLcarcTicker(){
+      try{
+        const data = await fetchJsonWithTimeout(LCARC_TRANSCRIPT_URL+"?t="+Date.now(),9000);
+        const lcarcRows=Array.isArray(data&&data.items)?data.items:[];
+        const lcarcNewest=lcarcRows.length?(lcarcRows[0].time||lcarcRows[0].display_time||lcarcRows[0].text||""):"";
+        setRadioTickerEventDriven(
+          "lcarcTickerTrack",
+          "lcarcTickerUpdated",
+          radioTickerItems(data,"LCARC",LCARC_STALE_MINUTES),
+          "No recent LCARC transcripts.",
+          lcarcNewest
+        );
+        setRadioTickerUpdated("lcarcTickerUpdated",data,LCARC_STALE_MINUTES);
+      }catch(err){
+        console.error("LCARC transcript ticker failed",err);
+        const status=document.getElementById("lcarcTickerUpdated");
+        if(status){status.textContent="UNAVAILABLE";status.classList.add("ticker-source-stale");}
+        setRadioTickerEventDriven(
+          "lcarcTickerTrack",
+          "lcarcTickerUpdated",
+          [{label:"No LCARC transcript is available yet, or the feed is temporarily unavailable.",url:null,css:"ticker-muted",icon:"📻"}],
+          "No recent LCARC transcripts.",
+          ""
+        );
+      }
+    }
+
+
+    function riverComTimeLabel(ts){
+      const n = Number(ts);
+      if(!Number.isFinite(n) || n <= 0) return "--";
+      const d = new Date(n * 1000);
+      if(Number.isNaN(d.getTime())) return "--";
+      return d.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});
+    }
+
+    function riverComAgeMinutes(ts){
+      const n = Number(ts);
+      if(!Number.isFinite(n) || n <= 0) return null;
+      return Math.max(0, Math.round((Date.now() - n * 1000) / 60000));
+    }
+
+    function riverComRowMarkup(call){
+      const display = call && call.display ? call.display : "RiverCom";
+      const durationNum = Number(call && call.duration);
+      const duration = Number.isFinite(durationNum) ? Math.round(durationNum) + " sec" : "--";
+      const audio = call && call.audio_url ? String(call.audio_url) : "";
+      const time = riverComTimeLabel(call && call.ts);
+      return '<div class="rivercom-row">'
+        + '<span class="rivercom-time">'+htmlEscape(time)+'</span>'
+        + '<span class="rivercom-channel">'+htmlEscape(display)+'</span>'
+        + '<span class="rivercom-duration">'+htmlEscape(duration)+'</span>'
+        + (audio
+            ? '<button type="button" class="rivercom-audio" data-audio="'+htmlEscape(audio)+'" data-label="'+htmlEscape(display+" · "+time)+'" onclick="playRiverComAudio(this)">▶ Audio</button>'
+            : '<span class="rivercom-duration">No audio</span>')
+        + '</div>';
+    }
+
+    function playRiverComAudio(button){
+      const player = document.getElementById("rivercomAudioPlayer");
+      const box = document.getElementById("rivercomPlayerBox");
+      const label = document.getElementById("rivercomNowPlaying");
+      if(!player || !box || !button) return;
+
+      const url = button.getAttribute("data-audio") || "";
+      const text = button.getAttribute("data-label") || "RiverCom call";
+      if(!url) return;
+
+      box.classList.add("active");
+      if(label) label.textContent = "Now playing: " + text;
+
+      /* Assign the selected call directly to the native audio element. */
+      if(player.getAttribute("src") !== url){
+        player.setAttribute("src", url);
+        player.load();
+      }
+
+      const promise = player.play();
+      if(promise && typeof promise.catch === "function"){
+        promise.catch(err => {
+          console.error("RiverCom audio playback failed", err);
+          if(label) label.textContent = "Audio could not be played in this browser";
+        });
+      }
+    }
+
+    function lcarcCallsRowMarkup(call){
+      const display = call && call.display ? call.display : "LCARC UHF 444.525 MHz";
+      const durationNum = Number(call && call.duration);
+      const duration = Number.isFinite(durationNum) ? Math.round(durationNum) + " sec" : "--";
+      const audio = call && call.audio_url ? String(call.audio_url) : "";
+      const time = riverComTimeLabel(call && call.ts);
+      return '<div class="rivercom-row">'
+        + '<span class="rivercom-time">'+htmlEscape(time)+'</span>'
+        + '<span class="rivercom-channel">'+htmlEscape(display)+'</span>'
+        + '<span class="rivercom-duration">'+htmlEscape(duration)+'</span>'
+        + (audio
+            ? '<button type="button" class="rivercom-audio" data-audio="'+htmlEscape(audio)+'" data-label="'+htmlEscape(display+" · "+time)+'" onclick="playLcarcCallsAudio(this)">▶ Audio</button>'
+            : '<span class="rivercom-duration">No audio</span>')
+        + '</div>';
+    }
+
+    function playLcarcCallsAudio(button){
+      const player = document.getElementById("lcarcCallsAudioPlayer");
+      const box = document.getElementById("lcarcCallsPlayerBox");
+      const label = document.getElementById("lcarcCallsNowPlaying");
+      if(!player || !box || !button) return;
+      const url = button.getAttribute("data-audio") || "";
+      const text = button.getAttribute("data-label") || "LCARC repeater call";
+      if(!url) return;
+      box.classList.add("active");
+      if(label) label.textContent = "Now playing: " + text;
+      if(player.getAttribute("src") !== url){
+        player.setAttribute("src", url);
+        player.load();
+      }
+      const promise = player.play();
+      if(promise && typeof promise.catch === "function") promise.catch(err => {
+        console.error("LCARC Calls audio playback failed", err);
+        if(label) label.textContent = "Audio could not be played in this browser";
+      });
+    }
+
+    async function loadLcarcCallsActivity(){
+      const list = document.getElementById("lcarcCallsActivityList");
+      const updated = document.getElementById("lcarcCallsActivityUpdated");
+      if(!list) return;
+      try{
+        const data = await fetchJsonWithTimeout(LCARC_CALLS_ACTIVITY_URL+"?t="+Date.now(),9000);
+        const rows = Array.isArray(data && data.calls) ? data.calls.slice() : [];
+        rows.sort((a,b)=>Number(b && b.ts || 0)-Number(a && a.ts || 0));
+        const recent = rows.slice(0,LCARC_CALLS_ACTIVITY_MAX_ITEMS);
+        if(!recent.length){
+          list.innerHTML='<div class="rivercom-empty">No recent LCARC repeater calls are available.</div>';
+          if(updated) updated.textContent="No traffic";
+          return;
+        }
+        list.innerHTML=recent.map(lcarcCallsRowMarkup).join("");
+        const age=riverComAgeMinutes(recent[0] && recent[0].ts);
+        const latestTime=riverComTimeLabel(recent[0] && recent[0].ts);
+        if(updated){
+          if(age!==null && age>LCARC_CALLS_STALE_MINUTES) updated.textContent="Latest "+latestTime+" · "+age+"m old";
+          else updated.textContent="Latest "+latestTime;
+        }
+      }catch(err){
+        console.error("LCARC Repeater Activity failed",err);
+        list.innerHTML='<div class="rivercom-empty">LCARC Calls activity feed is temporarily unavailable.</div>';
+        if(updated) updated.textContent="Unavailable";
+      }
+    }
+
+    async function loadRiverComActivity(){
+      const list = document.getElementById("rivercomActivityList");
+      const updated = document.getElementById("rivercomActivityUpdated");
+      if(!list) return;
+      try{
+        const data = await fetchJsonWithTimeout(RIVERCOM_ACTIVITY_URL+"?t="+Date.now(),9000);
+        const rows = Array.isArray(data && data.calls) ? data.calls.slice() : [];
+        rows.sort((a,b)=>Number(b && b.ts || 0)-Number(a && a.ts || 0));
+        const recent = rows.slice(0,RIVERCOM_ACTIVITY_MAX_ITEMS);
+
+        if(!recent.length){
+          list.innerHTML='<div class="rivercom-empty">No recent RiverCom calls are available.</div>';
+          if(updated) updated.textContent="No traffic";
+          return;
+        }
+
+        list.innerHTML=recent.map(riverComRowMarkup).join("");
+        const age=riverComAgeMinutes(recent[0] && recent[0].ts);
+        const latestTime=riverComTimeLabel(recent[0] && recent[0].ts);
+        if(updated){
+          if(age!==null && age>RIVERCOM_STALE_MINUTES){
+            updated.textContent="Latest "+latestTime+" · "+age+"m old";
+          }else{
+            updated.textContent="Latest "+latestTime;
+          }
+        }
+      }catch(err){
+        console.error("RiverCom Activity failed",err);
+        list.innerHTML='<div class="rivercom-empty">RiverCom Activity feed is temporarily unavailable.</div>';
+        if(updated) updated.textContent="Unavailable";
+      }
+    }
+
+    const WEATHER_LAT = 47.8409698;
+    const WEATHER_LON = -120.0164591;
+
+    function clamp(value, min, max) {
+      return Math.min(Math.max(value, min), max);
+    }
+
+    function windDirectionText(deg) {
+      if (deg === null || deg === undefined || Number.isNaN(deg)) return "--";
+      const dirs = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
+      return dirs[Math.round(deg / 22.5) % 16];
+    }
+
+
+    function drawSparkline(canvasId, values, options = {}) {
+      const canvas = document.getElementById(canvasId);
+      if (!canvas || !values || values.length < 2) return;
+      const ctx = canvas.getContext("2d");
+      const cssW = Math.max(1, Math.round(canvas.clientWidth || 260));
+      const cssH = Math.max(1, Math.round(canvas.clientHeight || 92));
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      const backingW = Math.round(cssW * dpr);
+      const backingH = Math.round(cssH * dpr);
+      if (canvas.width !== backingW || canvas.height !== backingH) {
+        canvas.width = backingW;
+        canvas.height = backingH;
+      }
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const w = cssW;
+      const h = cssH;
+      const pad = 12;
+      const nums = values.map(v => Number(v)).filter(v => Number.isFinite(v));
+      if (nums.length < 2) return;
+
+      const explicitMin = options.min !== undefined && options.min !== null;
+      const explicitMax = options.max !== undefined && options.max !== null;
+      let min = explicitMin ? Number(options.min) : Math.min(...nums);
+      let max = explicitMax ? Number(options.max) : Math.max(...nums);
+      if (min === max) {
+        if (explicitMin && !explicitMax) max = min + (min === 0 ? 1 : Math.max(Math.abs(min) * 0.05, 1));
+        else if (!explicitMin && explicitMax) min = max - (max === 0 ? 1 : Math.max(Math.abs(max) * 0.05, 1));
+        else { min -= 1; max += 1; }
+      }
+      const range = max - min;
+
+      ctx.clearRect(0, 0, w, h);
+      ctx.strokeStyle = "#2a303a";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let i = 1; i <= 3; i++) {
+        const y = pad + (h - pad * 2) * i / 4;
+        ctx.moveTo(pad, y);
+        ctx.lineTo(w - pad, y);
+      }
+      ctx.stroke();
+
+      ctx.strokeStyle = "#8bc7ff";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      nums.forEach((v, i) => {
+        const x = pad + (w - pad * 2) * (i / (nums.length - 1));
+        const y = h - pad - ((v - min) / range) * (h - pad * 2);
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+
+      const last = nums[nums.length - 1];
+      const x = w - pad;
+      const y = h - pad - ((last - min) / range) * (h - pad * 2);
+      ctx.fillStyle = "#8bc7ff";
+      ctx.beginPath();
+      ctx.arc(x, y, 3, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = "#c6ccd5";
+      ctx.font = "10px system-ui, -apple-system, Segoe UI, Arial";
+      ctx.textBaseline = "top";
+      ctx.fillText(`${max.toFixed(options.decimals ?? 0)}${options.unit ?? ""}`, pad, 2);
+      ctx.textBaseline = "bottom";
+      ctx.fillText(`${min.toFixed(options.decimals ?? 0)}${options.unit ?? ""}`, pad, h - 2);
+    }
+
+    function last24HourlyValues(data, fieldName) {
+      if (!data.hourly || !Array.isArray(data.hourly.time) || !Array.isArray(data.hourly[fieldName])) return [];
+      const now = new Date(data.current?.time || Date.now()).getTime();
+      const start = now - 24 * 60 * 60 * 1000;
+      const values = [];
+      for (let i = 0; i < data.hourly.time.length; i++) {
+        const t = new Date(data.hourly.time[i]).getTime();
+        if (t >= start && t <= now) values.push(Number(data.hourly[fieldName][i]));
+      }
+      return values.filter(v => Number.isFinite(v));
+    }
+
+
+    async function loadWeatherGauges() {
+      const status = document.getElementById("weatherStatus");
+      if (status) status.textContent = "Updating weather gauges...";
+
+      const url =
+        `https://api.open-meteo.com/v1/forecast?latitude=${WEATHER_LAT}&longitude=${WEATHER_LON}` +
+        `&current=temperature_2m,precipitation,rain,showers,snowfall,wind_speed_10m,wind_direction_10m,surface_pressure` +
+        `&hourly=temperature_2m,wind_speed_10m,precipitation,surface_pressure,precipitation_probability` +
+        `&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch&timezone=auto&past_days=1&forecast_days=2`;
+
+      try {
+        const response = await fetch(url, { cache: "no-store" });
+        if (!response.ok) throw new Error(`Weather API returned ${response.status}`);
+        const data = await response.json();
+
+        const current = data.current || {};
+        const temp = Number(current.temperature_2m);
+        const wind = Number(current.wind_speed_10m);
+        const windDeg = Number(current.wind_direction_10m);
+        const pressureHpa = Number(current.surface_pressure);
+        const pressureInHg = pressureHpa * 0.0295299830714;
+        const precipNow = Number(current.precipitation || 0);
+
+        // Sum precipitation over the most recent six hours so the gauge reflects
+        // what has actually fallen recently, not what is forecast to fall next.
+        let precip6 = 0;
+        if (data.hourly && Array.isArray(data.hourly.time)) {
+          const now = new Date(current.time || Date.now()).getTime();
+          const sixHoursAgo = now - 6 * 60 * 60 * 1000;
+          for (let i = 0; i < data.hourly.time.length; i++) {
+            const t = new Date(data.hourly.time[i]).getTime();
+            if (t > sixHoursAgo && t <= now) {
+              precip6 += Number(data.hourly.precipitation?.[i] || 0);
+            }
+          }
+        }
+
+        // Temperature gauge: 0°F to 110°F scale.
+        const tempPct = clamp((temp / 110) * 100, 0, 100);
+        document.getElementById("tempGauge").style.setProperty("--pct", tempPct.toFixed(0));
+        document.getElementById("tempValue").textContent = Number.isFinite(temp) ? Math.round(temp) : "--";
+        document.getElementById("tempDetail").textContent =
+          Number.isFinite(temp) ? `Current modeled temperature near Chelan/Orondo.` : "Temperature unavailable.";
+
+        // Wind gauge: 0 to 60 mph scale, with compass arrow.
+        const windPct = clamp((wind / 60) * 100, 0, 100);
+        document.getElementById("windGauge").style.setProperty("--pct", windPct.toFixed(0));
+        document.getElementById("windGauge").style.setProperty("--wind-deg", `${Number.isFinite(windDeg) ? windDeg : 0}deg`);
+        document.getElementById("windValue").textContent = Number.isFinite(wind) ? Math.round(wind) : "--";
+        document.getElementById("windDetail").textContent =
+          Number.isFinite(wind) ? `${Math.round(wind)} mph from ${Math.round(windDeg)}° (${windDirectionText(windDeg)})` : "Wind unavailable.";
+
+
+        // Pressure gauge: 28.50 to 31.00 inHg scale.
+        const pressurePct = clamp(((pressureInHg - 28.5) / (31.0 - 28.5)) * 100, 0, 100);
+        if (document.getElementById("pressureGauge")) {
+          document.getElementById("pressureGauge").style.setProperty("--pct", pressurePct.toFixed(0));
+          document.getElementById("pressureValue").textContent = Number.isFinite(pressureInHg) ? pressureInHg.toFixed(2) : "--";
+          document.getElementById("pressureDetail").textContent =
+            Number.isFinite(pressureInHg) ? `${pressureInHg.toFixed(2)} inHg local modeled surface pressure.` : "Pressure unavailable.";
+        }
+
+        // Precip gauge: 0 to 0.50 inch recent-6-hours scale.
+        const precipPct = clamp((precip6 / 0.50) * 100, 0, 100);
+        document.getElementById("precipGauge").style.setProperty("--pct", precipPct.toFixed(0));
+        document.getElementById("precipValue").textContent = Number.isFinite(precip6) ? precip6.toFixed(2) : "--";
+        document.getElementById("precipDetail").textContent =
+          `Last 6 hours: ${precip6.toFixed(2)} in. Current period: ${precipNow.toFixed(2)} in.`;
+
+
+        // Draw last-24-hour charts.
+        drawSparkline("tempChart", last24HourlyValues(data, "temperature_2m"), { decimals: 0, unit: "°" });
+        drawSparkline("windChart", last24HourlyValues(data, "wind_speed_10m"), { min: 0, decimals: 0, unit: "" });
+        drawSparkline("precipChart", last24HourlyValues(data, "precipitation"), { min: 0, decimals: 2, unit: "" });
+        const pressureHistory = last24HourlyValues(data, "surface_pressure").map(v => v * 0.0295299830714);
+        drawSparkline("pressureChart", pressureHistory, { decimals: 2, unit: "" });
+
+        if (status) {
+          const updated = current.time ? new Date(current.time).toLocaleString() : new Date().toLocaleString();
+          status.innerHTML = `Source: <a target="_blank" rel="noopener" href="https://open-meteo.com/">Open</a> · Updated ${updated}`;
+        }
+      } catch (err) {
+        console.error(err);
+        if (status) status.textContent = `Weather gauges failed to update: ${err.message}`;
+        document.getElementById("tempDetail").textContent = "Weather data unavailable. Check internet connection.";
+        document.getElementById("windDetail").textContent = "Weather data unavailable. Check internet connection.";
+        document.getElementById("precipDetail").textContent = "Weather data unavailable. Check internet connection.";
+        if (document.getElementById("pressureDetail")) {
+          document.getElementById("pressureDetail").textContent = "Weather data unavailable. Check internet connection.";
+        }
+      }
+    }
+
+    function forceReloadDouglasPudOutageMap(){
+      const frame=document.getElementById("douglasPudOutageFrame");
+      if(!frame) return;
+
+      const base="https://ebill.douglaspud.org/maps/OutageWebMap/";
+      try{
+        /* Force a true second navigation rather than assigning the same URL in-place. */
+        frame.src="about:blank";
+        setTimeout(()=>{
+          frame.src=base+"?_dashboard_reload="+Date.now();
+        },300);
+      }catch(err){
+        console.error("Douglas PUD outage map forced reload failed",err);
+      }
+    }
+
+    function primeDouglasPudOutageMap(){
+      /*
+       * The Douglas PUD map often fails on the first iframe navigation but succeeds
+       * after a manual Reload. Reproduce that behavior only after the full dashboard
+       * window has loaded, then make one additional retry.
+       */
+      window.addEventListener("load",()=>{
+        setTimeout(forceReloadDouglasPudOutageMap,2500);
+        setTimeout(forceReloadDouglasPudOutageMap,8500);
+      },{once:true});
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      try { loadWeatherGauges(); } catch (err) { console.error("Gauge startup failed", err); }
+      try { loadWeatherTicker(); } catch (err) { console.error("Weather ticker startup failed", err); }
+      try { loadNewsTicker(); } catch (err) { console.error("News ticker startup failed", err); }
+      try { loadPublicSafetyTicker(); } catch (err) { console.error("Public Safety ticker startup failed", err); }
+      try { loadLcarcTicker(); } catch (err) { console.error("LCARC ticker startup failed", err); }
+      try { loadLcarcCallsActivity(); } catch (err) { console.error("LCARC Calls Activity startup failed", err); }
+      try { loadRiverComActivity(); } catch (err) { console.error("RiverCom Activity startup failed", err); }
+      try { primeDouglasPudOutageMap(); } catch (err) { console.error("Douglas PUD map startup failed", err); }
+      try {
+        document.querySelectorAll('img.camera-img').forEach(img => {
+          const base = img.dataset.src || img.src.split('&_reload=')[0].split('?_reload=')[0];
+          const sep = base.includes('?') ? '&' : '?';
+          img.src = base + sep + '_reload=' + Date.now();
+        });
+      } catch (err) { console.error("Camera image refresh failed", err); }
+    });
+    setInterval(() => { try { loadWeatherGauges(); } catch (err) { console.error(err); } }, 10 * 60 * 1000);
+    setInterval(() => { try { loadWeatherTicker(); } catch (err) { console.error(err); } }, 5 * 60 * 1000);
+    setInterval(() => { try { loadNewsTicker(); } catch (err) { console.error(err); } }, 10 * 60 * 1000);
+    setInterval(() => { try { loadPublicSafetyTicker(); } catch (err) { console.error(err); } }, 15 * 1000);
+    setInterval(() => { try { loadLcarcTicker(); } catch (err) { console.error(err); } }, 15 * 1000);
+    setInterval(() => { try { loadLcarcCallsActivity(); } catch (err) { console.error(err); } }, 15 * 1000);
+    setInterval(() => { try { loadRiverComActivity(); } catch (err) { console.error(err); } }, 15 * 1000);
+
+    function reloadTile(btn) {
+      const tile = btn.closest('.tile');
+      const iframe = tile.querySelector('iframe');
+      const img = tile.querySelector('img');
+      if (iframe) iframe.src = iframe.src;
+      if (img) {
+        const base = img.dataset.src || img.src.split('&_reload=')[0].split('?_reload=')[0];
+        const sep = base.includes('?') ? '&' : '?';
+        img.src = base + sep + '_reload=' + Date.now();
+      }
+    }
+    function reloadAll() {
+      loadWeatherGauges();
+      document.querySelectorAll('iframe').forEach(f => f.src = f.src);
+      document.querySelectorAll('img.camera-img').forEach(img => {
+        const base = img.dataset.src || img.src.split('&_reload=')[0].split('?_reload=')[0];
+        const sep = base.includes('?') ? '&' : '?';
+        img.src = base + sep + '_reload=' + Date.now();
+      });
+    }
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen?.();
+      } else {
+        document.exitFullscreen?.();
+      }
+    }
+
+    async function loadNwsSevenDay(){
+      const body=document.getElementById("nwsSevenDayBody");
+      if(!body) return;
+      body.innerHTML='<div class="forecast-status">Loading National Weather Service forecast…</div>';
+      try{
+        const pointResp=await fetch("https://api.weather.gov/points/47.8407,-120.016",{cache:"no-store"});
+        if(!pointResp.ok) throw new Error("NWS point lookup HTTP "+pointResp.status);
+        const point=await pointResp.json();
+        const forecastUrl=point && point.properties && point.properties.forecast;
+        if(!forecastUrl) throw new Error("NWS forecast endpoint unavailable");
+        const fcResp=await fetch(forecastUrl,{cache:"no-store"});
+        if(!fcResp.ok) throw new Error("NWS forecast HTTP "+fcResp.status);
+        const fc=await fcResp.json();
+        const periods=(fc && fc.properties && Array.isArray(fc.properties.periods)) ? fc.properties.periods : [];
+        if(!periods.length) throw new Error("No forecast periods returned");
+
+        const rows=[];
+        for(let i=0;i<periods.length && rows.length<7;i++){
+          const p=periods[i];
+          if(!p || !p.isDaytime) continue;
+          const night=(i+1<periods.length && periods[i+1] && !periods[i+1].isDaytime) ? periods[i+1] : null;
+          rows.push({day:p,night});
+        }
+        if(!rows.length) throw new Error("No daytime forecast periods returned");
+
+        const cards=rows.map(({day,night})=>{
+          const pop=day.probabilityOfPrecipitation && day.probabilityOfPrecipitation.value;
+          const rh=day.relativeHumidity && day.relativeHumidity.value;
+          const low=night && night.temperature!=null ? night.temperature : null;
+          const icon=day.icon ? '<img class="forecast-icon" src="'+htmlEscape(day.icon)+'" alt="">' : '<div></div>';
+          const temps='<span class="forecast-temps">'+htmlEscape(String(day.temperature ?? "--"))+'°'
+            +(low!==null ? ' / '+htmlEscape(String(low))+'°' : '')+'</span>';
+          const meta=[
+            '<span><b>Precip</b> '+(pop==null?'--':htmlEscape(String(pop))+'%')+'</span>',
+            '<span><b>Wind</b> '+htmlEscape((day.windDirection||"")+" "+(day.windSpeed||"--"))+'</span>',
+            '<span><b>RH</b> '+(rh==null?'--':htmlEscape(String(rh))+'%')+'</span>'
+          ].join("");
+          return '<div class="forecast-day">'
+            +icon
+            +'<div class="forecast-head"><span class="forecast-day-name">'+htmlEscape(day.name||"")+'</span>'+temps+'</div>'
+            +'<div class="forecast-short">'+htmlEscape(day.shortForecast||"")+'</div>'
+            +'<div class="forecast-meta">'+meta+'</div>'
+            +'</div>';
+        }).join("");
+        body.innerHTML='<div class="forecast-seven-day">'+cards+'</div>';
+      }catch(err){
+        body.innerHTML='<div class="forecast-status">NWS forecast temporarily unavailable. Use Open for the official Chelan forecast.<br><small>'
+          +htmlEscape(err && err.message ? err.message : String(err))+'</small></div>';
+      }
+    }
+
+    let spcLeafletMap=null;
+    let spcRiskLayer=null;
+
+    function spcRiskStyle(feature){
+      const dn=Number(feature && feature.properties ? feature.properties.dn : 0);
+      const styles={
+        2:{fillColor:"rgb(193,233,193)",color:"rgb(85,187,85)"},
+        3:{fillColor:"rgb(102,163,102)",color:"rgb(0,85,0)"},
+        4:{fillColor:"rgb(255,224,102)",color:"rgb(221,170,0)"},
+        5:{fillColor:"rgb(255,163,102)",color:"rgb(255,102,0)"},
+        6:{fillColor:"rgb(224,102,102)",color:"rgb(204,0,0)"},
+        8:{fillColor:"rgb(238,153,238)",color:"rgb(204,0,204)"}
+      };
+      const s=styles[dn] || {fillColor:"#777",color:"#bbb"};
+      return {fillColor:s.fillColor,color:s.color,weight:1.4,opacity:.95,fillOpacity:.48};
+    }
+
+    async function loadSpcOutlook(){
+      const status=document.getElementById("spcMapStatus");
+      const mapEl=document.getElementById("spcMap");
+      if(!status || !mapEl) return;
+      status.style.display="block";
+      status.textContent="Loading NOAA SPC Day 1 outlook…";
+      try{
+        if(typeof L==="undefined") throw new Error("Map library unavailable");
+        if(!spcLeafletMap){
+          spcLeafletMap=L.map("spcMap",{zoomControl:true,attributionControl:true})
+            .setView([47.55,-120.35],6);
+          L.tileLayer("https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}",{
+            maxZoom:18,
+            attribution: '&copy; USGS The National Map'
+          }).addTo(spcLeafletMap);
+          const chelanIcon=L.divIcon({className:"",html:'<div class="spc-chelan-marker"></div>',iconSize:[18,18],iconAnchor:[9,9]});
+          L.marker([47.8407,-120.016],{icon:chelanIcon})
+            .addTo(spcLeafletMap)
+            .bindTooltip("Chelan",{permanent:false,direction:"top"});
+        }
+        const q="https://mapservices.weather.noaa.gov/vector/rest/services/outlooks/SPC_wx_outlks/FeatureServer/1/query"
+          +"?where=1%3D1&outFields=dn,label,valid,expire&returnGeometry=true&outSR=4326&f=geojson";
+        const resp=await fetch(q,{cache:"no-store"});
+        if(!resp.ok) throw new Error("NOAA SPC HTTP "+resp.status);
+        const geo=await resp.json();
+        if(spcRiskLayer){spcLeafletMap.removeLayer(spcRiskLayer);}
+        spcRiskLayer=L.geoJSON(geo,{
+          style:spcRiskStyle,
+          onEachFeature:(feature,layer)=>{
+            const p=feature && feature.properties ? feature.properties : {};
+            const label=p.label || ({2:"Thunderstorm",3:"Marginal",4:"Slight",5:"Enhanced",6:"Moderate",8:"High"}[Number(p.dn)] || "SPC outlook");
+            layer.bindTooltip(label);
+          }
+        }).addTo(spcLeafletMap);
+        status.textContent="NOAA SPC Day 1 categorical outlook";
+        setTimeout(()=>{status.style.display="none";},2200);
+        setTimeout(()=>spcLeafletMap.invalidateSize(),50);
+      }catch(err){
+        status.style.display="block";
+        status.textContent="SPC outlook unavailable — use Open";
+        console.error("SPC outlook:",err);
+      }
+    }
+
+    loadSpcOutlook();
+
+    function reloadCpcImage(button){
+      const tile=button && button.closest ? button.closest(".tile") : null;
+      const img=tile ? tile.querySelector(".cpc-live-image") : null;
+      if(!img) return;
+      const base=img.getAttribute("data-base-src") || img.src.split("?")[0];
+      img.src=base+"?t="+Date.now();
+    }
+
+
+    function reloadForecastImage(button){
+      const tile=button && button.closest ? button.closest(".tile") : null;
+      const img=tile ? tile.querySelector(".forecast-live-image") : null;
+      if(!img) return;
+      const base=img.getAttribute("data-base-src") || img.src.split("?")[0];
+      img.src=base+"?t="+Date.now();
+    }
+
+
+    function startNwsSevenDay(){
+      loadNwsSevenDay();
+      setTimeout(()=>{
+        const body=document.getElementById("nwsSevenDayBody");
+        if(body && /Loading National Weather Service forecast/i.test(body.textContent || "")){
+          loadNwsSevenDay();
+        }
+      },1800);
+    }
+    function startDashboardNativeMaps(){
+      startNwsSevenDay();
+      loadEarthquakeMap();
+      loadStormReportsMap();
+      loadSevereWeatherMap();
+      loadNationalFloodOutlook();
+    }
+    if(document.readyState==="loading"){
+      document.addEventListener("DOMContentLoaded",startDashboardNativeMaps,{once:true});
+    }else{
+      startDashboardNativeMaps();
+    }
+
+
+    let earthquakeMap=null;
+    let earthquakeLayer=null;
+
+    function earthquakeRadius(mag){
+      const m=Number.isFinite(Number(mag)) ? Number(mag) : 0;
+      return Math.max(5, Math.min(16, 5 + Math.max(0,m)*2.5));
+    }
+
+    function earthquakeAgeText(ms){
+      const age=Math.max(0,Date.now()-ms);
+      const mins=Math.floor(age/60000);
+      if(mins<60) return mins+" min ago";
+      const hrs=Math.floor(mins/60);
+      if(hrs<48) return hrs+" hr"+(hrs===1?"":"s")+" ago";
+      const days=Math.floor(hrs/24);
+      return days+" day"+(days===1?"":"s")+" ago";
+    }
+
+    function escapeEarthquakeHtml(value){
+      return String(value ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+    }
+
+    async function loadEarthquakeMap(){
+      const status=document.getElementById("earthquakeMapStatus");
+      if(status){ status.style.display="block"; status.textContent="Loading recent earthquakes…"; }
+
+      try{
+        if(!window.L) throw new Error("Leaflet map library unavailable");
+
+        if(!earthquakeMap){
+          earthquakeMap=L.map("earthquakeMap",{zoomControl:true}).setView([47.6,-120.5],6);
+          L.tileLayer("https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}",{
+            maxZoom:18,
+            attribution: '&copy; USGS The National Map'
+          }).addTo(earthquakeMap);
+          L.circleMarker([47.8407,-120.016],{
+            radius:6,weight:2,color:"#111",fillColor:"#ffffff",fillOpacity:1
+          }).bindTooltip("Chelan").addTo(earthquakeMap);
+        }
+
+        const url="https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_month.geojson?t="+Date.now();
+        const response=await fetch(url,{cache:"no-store"});
+        if(!response.ok) throw new Error("USGS feed returned HTTP "+response.status);
+        const data=await response.json();
+
+        if(earthquakeLayer){ earthquakeLayer.remove(); }
+        earthquakeLayer=L.layerGroup().addTo(earthquakeMap);
+
+        // Pacific Northwest display bounds: WA, OR, nearby ID/BC/offshore.
+        const features=(data.features||[]).filter(f=>{
+          const c=f && f.geometry && f.geometry.coordinates;
+          if(!c || c.length<2) return false;
+          const lon=Number(c[0]), lat=Number(c[1]);
+          return lat>=41.5 && lat<=50.5 && lon>=-126.5 && lon<=-116.0;
+        });
+
+        features.sort((a,b)=>(b.properties?.time||0)-(a.properties?.time||0));
+
+        features.forEach(f=>{
+          const c=f.geometry.coordinates;
+          const p=f.properties||{};
+          const mag=Number(p.mag);
+          const depthKm=Number(c[2]);
+          const marker=L.circleMarker([c[1],c[0]],{
+            radius:earthquakeRadius(mag),
+            weight:1.5,
+            color:"#ffffff",
+            fillColor:"#f1b44c",
+            fillOpacity:.78
+          });
+          const magText=Number.isFinite(mag)?mag.toFixed(1):"—";
+          const depthMi=Number.isFinite(depthKm)?(depthKm*0.621371).toFixed(1):"—";
+          const when=Number.isFinite(Number(p.time))?new Date(p.time).toLocaleString():"—";
+          const age=Number.isFinite(Number(p.time))?earthquakeAgeText(Number(p.time)):"";
+          const detailUrl=p.url||"https://earthquake.usgs.gov/earthquakes/map/";
+          marker.bindPopup(
+            '<div style="min-width:210px">'+
+            '<b>M '+escapeEarthquakeHtml(magText)+'</b><br>'+
+            escapeEarthquakeHtml(p.place||"Location unavailable")+'<br>'+
+            '<b>Time:</b> '+escapeEarthquakeHtml(when)+(age?' ('+escapeEarthquakeHtml(age)+')':'')+'<br>'+
+            '<b>Depth:</b> '+escapeEarthquakeHtml(depthMi)+' mi<br>'+
+            '<a href="'+escapeEarthquakeHtml(detailUrl)+'" target="_blank" rel="noopener">USGS event details</a>'+
+            '</div>'
+          );
+          marker.addTo(earthquakeLayer);
+        });
+
+        setTimeout(()=>earthquakeMap.invalidateSize(),50);
+        if(status){
+          const generated=data.metadata && data.metadata.generated ? new Date(data.metadata.generated).toLocaleTimeString() : "now";
+          status.textContent=features.length+" earthquakes in Pacific Northwest · USGS 30-day feed · updated "+generated;
+          setTimeout(()=>{ if(status) status.style.display="none"; },5000);
+        }
+      }catch(err){
+        console.error("Earthquake map load failed:",err);
+        if(status){
+          status.style.display="block";
+          status.textContent="Earthquake data unavailable — use Open PNSN";
+        }
+      }
+    }
+
+
+    let stormReportsMap=null;
+    let stormReportsLayer=null;
+
+    function stormReportCategory(desc){
+      const d=String(desc||"").toLowerCase();
+      if(/tornado|funnel|hail|thunderstorm|wind|downburst|microburst|lightning/.test(d)) return "severe";
+      if(/flood|flash flood|heavy rain|debris flow/.test(d)) return "flood";
+      if(/snow|blizzard|ice|freez|sleet|winter|avalanche|wind chill/.test(d)) return "winter";
+      if(/wildfire|fire/.test(d)) return "fire";
+      return "other";
+    }
+
+    function stormReportColor(cat){
+      return {
+        severe:"#ff6b6b",
+        flood:"#4da3ff",
+        winter:"#e7f5ff",
+        fire:"#ff9f43",
+        other:"#c792ea"
+      }[cat] || "#c792ea";
+    }
+
+    function stormReportField(p,names){
+      for(const n of names){
+        if(p[n]!==undefined && p[n]!==null && String(p[n]).trim()!=="") return p[n];
+      }
+      return "";
+    }
+
+    async function loadStormReportsMap(){
+      const status=document.getElementById("stormReportsMapStatus");
+      if(status){status.style.display="block";status.textContent="Loading NWS local storm reports…";}
+
+      try{
+        if(!window.L) throw new Error("Leaflet map library unavailable");
+
+        if(!stormReportsMap){
+          stormReportsMap=L.map("stormReportsMap",{zoomControl:true}).setView([47.4,-120.4],6);
+          L.tileLayer("https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}",{
+            maxZoom:18,
+            attribution: '&copy; USGS The National Map'
+          }).addTo(stormReportsMap);
+          L.circleMarker([47.8407,-120.016],{
+            radius:6,weight:2,color:"#111",fillColor:"#ffffff",fillOpacity:1
+          }).bindTooltip("Chelan").addTo(stormReportsMap);
+
+          // Reload reports after the user finishes panning or zooming.
+          // Debouncing prevents unnecessary requests during map movement.
+          let stormMoveTimer=null;
+          stormReportsMap.on("moveend",()=>{
+            clearTimeout(stormMoveTimer);
+            stormMoveTimer=setTimeout(()=>loadStormReportsMap(),350);
+          });
+        }
+
+        // NOAA/NWS official Local Storm Reports service, layer 2 = last 72 hours.
+        // Query the CURRENT visible map extent. This lets the panel start focused
+        // on the Pacific Northwest but reveal reports elsewhere as the user pans
+        // or zooms out.
+        const base="https://mapservices.weather.noaa.gov/vector/rest/services/obs/nws_local_storm_reports/MapServer/2/query";
+        const bounds=stormReportsMap.getBounds();
+        const geometry=[
+          bounds.getWest().toFixed(5),
+          bounds.getSouth().toFixed(5),
+          bounds.getEast().toFixed(5),
+          bounds.getNorth().toFixed(5)
+        ].join(",");
+        const params=new URLSearchParams({
+          where:"1=1",
+          geometry:geometry,
+          geometryType:"esriGeometryEnvelope",
+          inSR:"4326",
+          spatialRel:"esriSpatialRelIntersects",
+          outFields:"*",
+          returnGeometry:"true",
+          outSR:"4326",
+          resultRecordCount:"2000",
+          f:"geojson",
+          t:String(Date.now())
+        });
+        const response=await fetch(base+"?"+params.toString(),{cache:"no-store"});
+        if(!response.ok) throw new Error("NWS LSR service returned HTTP "+response.status);
+        const data=await response.json();
+
+        if(stormReportsLayer) stormReportsLayer.remove();
+        stormReportsLayer=L.layerGroup().addTo(stormReportsMap);
+
+        const features=data.features||[];
+        features.forEach(f=>{
+          if(!f.geometry || f.geometry.type!=="Point") return;
+          const c=f.geometry.coordinates;
+          const p=f.properties||{};
+          const desc=stormReportField(p,["descript","description","Description"]);
+          const loc=stormReportField(p,["location","Location"]);
+          const state=stormReportField(p,["state","State"]);
+          const mag=stormReportField(p,["magnitude","event_magnitude","Event_Magnitude"]);
+          const units=stormReportField(p,["mag_units","magnitude_units","Magnitude_Units"]);
+          const remarks=stormReportField(p,["remarks","Remarks"]);
+          const wfo=stormReportField(p,["wfo","forecast_office","Forecast_Office"]);
+          const timeRaw=stormReportField(p,["valid","time","time_of_report","Time_of_Report"]);
+          const cat=stormReportCategory(desc);
+          const marker=L.circleMarker([c[1],c[0]],{
+            radius:7,weight:1.5,color:"#ffffff",
+            fillColor:stormReportColor(cat),fillOpacity:.86
+          });
+          let timeText="—";
+          if(timeRaw){
+            const d=new Date(timeRaw);
+            timeText=isNaN(d.getTime())?String(timeRaw):d.toLocaleString();
+          }
+          const magnitudeText=mag ? escapeEarthquakeHtml(String(mag)+(units?" "+units:"")) : "—";
+          marker.bindPopup(
+            '<div style="min-width:225px">'+
+            '<b>'+escapeEarthquakeHtml(desc||"Local Storm Report")+'</b><br>'+
+            escapeEarthquakeHtml([loc,state].filter(Boolean).join(", ")||"Location unavailable")+'<br>'+
+            '<b>Time:</b> '+escapeEarthquakeHtml(timeText)+'<br>'+
+            '<b>Magnitude:</b> '+magnitudeText+'<br>'+
+            (wfo?'<b>NWS Office:</b> '+escapeEarthquakeHtml(wfo)+'<br>':'')+
+            (remarks?'<div style="margin-top:5px">'+escapeEarthquakeHtml(remarks)+'</div>':'')+
+            '</div>'
+          );
+          marker.addTo(stormReportsLayer);
+        });
+
+        setTimeout(()=>stormReportsMap.invalidateSize(),50);
+        if(status){
+          status.textContent=features.length+" NWS local storm reports in view · last 72 hours";
+          setTimeout(()=>{if(status)status.style.display="none";},5000);
+        }
+      }catch(err){
+        console.error("Storm Reports map load failed:",err);
+        if(status){
+          status.style.display="block";
+          status.textContent="Storm-report data unavailable — use Open WPC";
+        }
+      }
+    }
+
+
+    function reloadEsriWildfire(button){
+      const tile=button && button.closest ? button.closest(".tile") : null;
+      const frame=tile ? tile.querySelector(".esri-wildfire-frame") : document.querySelector(".esri-wildfire-frame");
+      if(!frame) return;
+      const base=frame.dataset.baseSrc || "https://livingatlas.arcgis.com/wildfireaware/";
+      frame.src="about:blank";
+      setTimeout(()=>{ frame.src=base; },80);
+    }
+let severeWeatherMap=null,severeWeatherAlertsLayer=null,severeWeatherReportsLayer=null,severeWeatherMoveTimer=null;
+function swStyle(f){
+ const p=f.properties||{},e=String(p.prod_type||p.event||"").toLowerCase(),s=String(p.severity||p.sig||"").toLowerCase();
+ const c=(e.includes("warning")||s==="extreme"||s==="severe")?"#ff5050":e.includes("watch")?"#ffbe46":"#5aa5ff";
+ return {color:c,weight:1.5,fillColor:c,fillOpacity:.24};
+}
+function swSymbolSpec(event){
+ const e=String(event||"").toLowerCase();
+ if(e.includes("tornado")||e.includes("funnel")) return {cls:"tornado",glyph:"↯"};
+ if(e.includes("hail")) return {cls:"diamond",glyph:"●"};
+ if(e.includes("wind")) return {cls:"diamond",glyph:"≋"};
+ if(e.includes("thunderstorm")) return {cls:"diamond",glyph:"⚡"};
+ if(e.includes("flash flood")||e.includes("flood")) return {cls:"diamond flood",glyph:"≋"};
+ if(e.includes("winter")||e.includes("snow")||e.includes("blizzard")||e.includes("ice")) return {cls:"diamond winter",glyph:"✳"};
+ if(e.includes("fire")||e.includes("red flag")) return {cls:"diamond fire",glyph:"♨"};
+ if(e.includes("marine")) return {cls:"diamond flood",glyph:"≈"};
+ return {cls:"diamond generic",glyph:"!"};
+}
+function swDivIcon(event){
+ const s=swSymbolSpec(event);
+ return L.divIcon({className:"",html:'<div class="sw-report-icon '+s.cls+'"><span>'+s.glyph+'</span></div>',iconSize:[30,30],iconAnchor:[15,15],popupAnchor:[0,-15]});
+}
+async function loadSevereWeatherMap(){
+ const status=document.getElementById("severeWeatherMapStatus");
+ if(status){status.style.display="block";status.textContent="Loading severe-weather data…";}
+ try{
+  if(!window.L) throw new Error("Leaflet unavailable");
+  if(!severeWeatherMap){
+   severeWeatherMap=L.map("severeWeatherMap",{zoomControl:true}).setView([47.4,-120.4],6);
+   L.tileLayer("https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}",{maxZoom:18,attribution: '&copy; USGS The National Map'}).addTo(severeWeatherMap);
+   L.circleMarker([47.8407,-120.016],{radius:6,weight:2,color:"#111",fillColor:"#fff",fillOpacity:1}).bindTooltip("Chelan").addTo(severeWeatherMap);
+   severeWeatherMap.on("moveend",()=>{clearTimeout(severeWeatherMoveTimer);severeWeatherMoveTimer=setTimeout(loadSevereWeatherMap,400);});
+  }
+  const b=severeWeatherMap.getBounds(),bbox=[b.getWest(),b.getSouth(),b.getEast(),b.getNorth()].map(v=>v.toFixed(5)).join(",");
+  const wwaBase="https://mapservices.weather.noaa.gov/eventdriven/rest/services/WWA/watch_warn_adv/FeatureServer/1/query";
+  const wwaParams=new URLSearchParams({
+    where:"1=1",geometry:bbox,geometryType:"esriGeometryEnvelope",inSR:"4326",
+    spatialRel:"esriSpatialRelIntersects",outFields:"*",returnGeometry:"true",
+    outSR:"4326",resultRecordCount:"4000",f:"geojson",t:String(Date.now())
+  });
+  const esriAllBase="https://services6.arcgis.com/LpgsLsuQ37oaN8cR/arcgis/rest/services/Storm_Report/FeatureServer/4/query";
+  const allParams=new URLSearchParams({
+    where:"1=1",geometry:bbox,geometryType:"esriGeometryEnvelope",inSR:"4326",
+    spatialRel:"esriSpatialRelIntersects",outFields:"*",returnGeometry:"true",
+    outSR:"4326",resultRecordCount:"2000",f:"geojson",t:String(Date.now())
+  });
+  const [ar,rr]=await Promise.all([
+    fetch(wwaBase+"?"+wwaParams.toString(),{cache:"no-store"}),
+    fetch(esriAllBase+"?"+allParams.toString(),{cache:"no-store"})
+  ]);
+  if(!ar.ok||!rr.ok) throw new Error("Weather service unavailable");
+  const alerts=await ar.json(),reports=await rr.json();
+  if(severeWeatherAlertsLayer) severeWeatherAlertsLayer.remove();
+  if(severeWeatherReportsLayer) severeWeatherReportsLayer.remove();
+  severeWeatherAlertsLayer=L.layerGroup().addTo(severeWeatherMap);
+  (alerts.features||[]).forEach(f=>{if(!f.geometry)return;let gj;try{gj=L.geoJSON(f,{style:swStyle});}catch(e){return;}const fb=gj.getBounds();if(!fb.isValid()||!fb.intersects(b))return;const p=f.properties||{};
+    const alertType=p.prod_type||p.event||"Weather Alert";
+    const area=p.area_desc||p.areaDesc||p.location||"";
+    const issued=p.issue||p.issuance||p.sent||"";
+    const expires=p.expire||p.expires||p.expiration||"";
+    const summary=p.summary||p.headline||p.description||"";
+    const popup='<b>'+escapeEarthquakeHtml(alertType)+'</b><br>'+
+      (area?escapeEarthquakeHtml(area)+'<br>':'')+
+      (issued?'<b>Issued:</b> '+escapeEarthquakeHtml(new Date(issued).toLocaleString())+'<br>':'')+
+      (expires?'<b>Expires:</b> '+escapeEarthquakeHtml(new Date(expires).toLocaleString())+'<br>':'')+
+      (summary?'<div style="margin-top:5px">'+escapeEarthquakeHtml(summary)+'</div>':'');
+    gj.eachLayer(l=>l.bindPopup(popup));gj.addTo(severeWeatherAlertsLayer);
+    L.marker(fb.getCenter(),{icon:swDivIcon(alertType)}).bindPopup(popup).addTo(severeWeatherAlertsLayer);});
+  severeWeatherReportsLayer=L.layerGroup().addTo(severeWeatherMap);
+  (reports.features||[]).forEach(f=>{
+    if(!f.geometry||f.geometry.type!=="Point")return;
+    const c=f.geometry.coordinates,p=f.properties||{};
+    const d=stormReportField(p,["Type","TYPE","Event","EVENT","descript","description","Description","EVENT_TYPE"])||"Storm Report";
+    const loc=stormReportField(p,["Location","LOCATION","location","loc_desc","City","CITY"]);
+    const county=stormReportField(p,["County","COUNTY","county","CZ_NAME"]);
+    const state=stormReportField(p,["State","STATE","state"]);
+    const comment=stormReportField(p,["Comments","COMMENTS","Comment","COMMENT","remarks","Remarks","EPISODE_NARRATIVE"]);
+    const mag=stormReportField(p,["Magnitude","MAGNITUDE","magnitude","Mag","MAG"]);
+    const units=stormReportField(p,["Units","UNITS","units","mag_units"]);
+    const timeRaw=stormReportField(p,["Time","TIME","DateTime","DATETIME","valid","lsr_validtime","Date","DATE"]);
+    let when="";
+    if(timeRaw){const dt=new Date(timeRaw);when=isNaN(dt.getTime())?String(timeRaw):dt.toLocaleString();}
+    const place=[loc,county,state].filter(Boolean).join(", ");
+    const popup='<div style="min-width:235px"><b>'+escapeEarthquakeHtml(d)+(place?': '+escapeEarthquakeHtml(place):'')+'</b><br>'+
+      (when?'<b>Reported:</b> '+escapeEarthquakeHtml(when)+'<br>':'')+
+      (mag?'<b>Magnitude:</b> '+escapeEarthquakeHtml(String(mag)+(units?' '+units:''))+'<br>':'')+
+      (comment?'<div style="margin-top:5px">'+escapeEarthquakeHtml(comment)+'</div>':'')+
+      '<div style="margin-top:5px;font-style:italic">Data Source: National Weather Service / NOAA</div></div>';
+    L.marker([c[1],c[0]],{icon:swDivIcon(d)}).bindPopup(popup).addTo(severeWeatherReportsLayer);
+  });
+  setTimeout(()=>severeWeatherMap.invalidateSize(),50);
+  if(status){status.textContent=(alerts.features||[]).length+" active NWS alerts · "+(reports.features||[]).length+" Esri/NOAA storm reports in view";setTimeout(()=>status.style.display="none",5000);}
+ }catch(e){console.error(e);if(status){status.style.display="block";status.textContent="Severe-weather data unavailable — use Open Esri";}}
+}
+function reloadEsriFlooding(button){
+  const tile=button&&button.closest?button.closest(".tile"):null;
+  const frame=tile?tile.querySelector(".esri-flooding-frame"):document.querySelector(".esri-flooding-frame");
+  if(!frame)return;
+  const base=frame.dataset.baseSrc||"https://disasterresponse.maps.arcgis.com/apps/instant/basic/index.html?appid=d0bc9065603b404288e1840c006958de";
+  frame.src="about:blank";
+  setTimeout(()=>{frame.src=base;},80);
+}
+
+let nationalFloodMap=null,nationalFloodLayers=[];
+async function loadNationalFloodOutlook(){
+ const status=document.getElementById("nationalFloodStatus");
+ if(status){status.style.display="block";status.textContent="Loading flood outlook…";}
+ try{
+  if(!window.L)throw new Error("Leaflet unavailable");
+  if(!nationalFloodMap){
+   nationalFloodMap=L.map("nationalFloodMap",{zoomControl:true}).setView([39.5,-98.5],4);
+   L.tileLayer("https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}",{maxZoom:18,attribution: '&copy; USGS The National Map'}).addTo(nationalFloodMap);
+   L.circleMarker([47.8407,-120.016],{radius:6,weight:2,color:"#111",fillColor:"#fff",fillOpacity:1}).bindTooltip("Chelan").addTo(nationalFloodMap);
+  }
+  nationalFloodLayers.forEach(x=>x.remove());nationalFloodLayers=[];
+  const service="https://mapservices.weather.noaa.gov/vector/rest/services/outlooks/sig_riv_fld_outlk/MapServer/0/query";
+  const params=new URLSearchParams({where:"1=1",outFields:"*",returnGeometry:"true",outSR:"4326",f:"geojson",t:String(Date.now())});
+  const r=await fetch(service+"?"+params.toString(),{cache:"no-store"});
+  if(!r.ok)throw new Error("NOAA flood outlook service returned HTTP "+r.status);
+  const data=await r.json();
+  const features=data.features||[];
+  function floodClass(p){
+    const vals=Object.values(p||{}).map(v=>String(v||"").toLowerCase()).join(" ");
+    if(vals.includes("occur")||vals.includes("imminent"))return ["Occurring / Imminent","#d7191c"];
+    if(vals.includes("likely"))return ["Likely","#fdae61"];
+    return ["Possible","#ffff66"];
+  }
+  const layer=L.geoJSON(data,{
+    style:f=>{const x=floodClass(f.properties);return {color:x[1],weight:2,fillColor:x[1],fillOpacity:.45};},
+    onEachFeature:(f,l)=>{const x=floodClass(f.properties);l.bindPopup("<b>"+x[0]+"</b><br>NWS Significant River Flood Outlook");}
+  }).addTo(nationalFloodMap);
+  nationalFloodLayers.push(layer);
+  setTimeout(()=>nationalFloodMap.invalidateSize(),50);
+  if(status){status.textContent=features.length+" significant-flood outlook areas · NOAA/NWS";setTimeout(()=>status.style.display="none",5000);}
+ }catch(e){console.error(e);if(status){status.style.display="block";status.textContent="Flood outlook data unavailable — use Open WPC";}}
+}
+function reloadWpcPqpf(button){
+ const tile=button&&button.closest?button.closest(".tile"):null;
+ const frame=tile?tile.querySelector(".wpc-pqpf-frame"):document.querySelector(".wpc-pqpf-frame");
+ if(!frame)return;
+ const base=frame.dataset.baseSrc||"https://www.wpc.ncep.noaa.gov/pqpf/conus_hpc_pqpf.php?fpd=24";
+ frame.src="about:blank";setTimeout(()=>{frame.src=base;},80);
+}
+
+
+
+function reloadWapatoBearCam(button){
+  const tile=button&&button.closest?button.closest(".tile"):null;
+  const img=tile?tile.querySelector(".wapato-bear-webcam-image"):document.querySelector(".wapato-bear-webcam-image");
+  if(!img)return;
+  const base=img.dataset.baseSrc||"https://webcam.wapatopoint.com/webcam3.jpg";
+  img.src=base+"?t="+Date.now();
+}
+
+function reloadTwentyFiveMileCam(button){
+  const tile=button&&button.closest?button.closest(".tile"):null;
+  const img=tile?tile.querySelector(".twentyfive-mile-webcam-image"):document.querySelector(".twentyfive-mile-webcam-image");
+  if(!img)return;
+  const base=img.dataset.baseSrc||"https://seechelan.com/25Mile/Cam01.jpg";
+  img.src=base+"?t="+Date.now();
+}
+
+
+let riverComLiveMap=null;
+let riverComLiveMarkers=[];
+const riverComGeocodeCache={};
+
+function riverComNormalizeGroup(v){
+  return String(v||"").toLowerCase().replace(/[^a-z0-9]/g,"");
+}
+function riverComCallTs(call){
+  const n=Number(call&&call.ts);
+  return Number.isFinite(n)?n:0;
+}
+function riverComSignalTs(sig){
+  const n=Number(sig&&sig.ts);
+  return Number.isFinite(n)?n:0;
+}
+function riverComCallsForIncident(primary,signals,calls){
+  const sigs=(Array.isArray(signals)?signals:[]).concat(primary?[primary]:[]);
+  const matched=[];
+  for(const call of (Array.isArray(calls)?calls:[])){
+    const ct=riverComCallTs(call); if(!ct) continue;
+    const cg=riverComNormalizeGroup(call.groupId||call.grouping||call.display||call.description);
+    const ok=sigs.some(sig=>{
+      const st=riverComSignalTs(sig); if(!st || Math.abs(ct-st)>180000) return false;
+      const sg=riverComNormalizeGroup(sig.groupKey||sig.groupDisplay||(Array.isArray(sig.groups)&&sig.groups[0]&&sig.groups[0].display));
+      return !sg || !cg || sg===cg || sg.includes(cg) || cg.includes(sg);
+    });
+    if(ok) matched.push(call);
+  }
+  return matched.sort((a,b)=>riverComCallTs(b)-riverComCallTs(a));
+}
+async function riverComGeocode(location){
+  const key=String(location||"").trim();
+  if(!key) return null;
+  if(riverComGeocodeCache[key]) return riverComGeocodeCache[key];
+  try{
+    const q=new URLSearchParams({
+      SingleLine:key+", Chelan County, Washington",
+      f:"json",outFields:"Match_addr,Addr_type",maxLocations:"1"
+    });
+    const r=await fetch("https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?"+q.toString(),{cache:"no-store"});
+    if(!r.ok) throw new Error("geocoder HTTP "+r.status);
+    const d=await r.json();
+    const c=Array.isArray(d.candidates)&&d.candidates[0];
+    if(!c||!c.location) return null;
+    const out={lat:Number(c.location.y),lon:Number(c.location.x),address:c.address||key};
+    if(Number.isFinite(out.lat)&&Number.isFinite(out.lon)) riverComGeocodeCache[key]=out;
+    return riverComGeocodeCache[key]||null;
+  }catch(e){ console.warn("RiverCom geocode failed",key,e); return null; }
+}
+async function loadRiverComLiveMap(force){
+  const status=document.getElementById("riverComLiveMapStatus");
+  const updated=document.getElementById("riverComMapUpdated");
+  if(status){status.style.display="block";status.textContent=force?"Reloading…":"Loading geolocated RiverCom incidents…";}
+  try{
+    if(!window.L) throw new Error("Leaflet unavailable");
+    if(!riverComLiveMap){
+      riverComLiveMap=L.map("riverComLiveMap",{zoomControl:true}).setView([47.84,-120.02],9);
+      L.tileLayer("https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}",{maxZoom:18,attribution: '&copy; USGS The National Map'}).addTo(riverComLiveMap);
+    }
+    const [rg,rc]=await Promise.all([
+      fetchJsonWithTimeout(RADIANT_GLOW_MAJOR_EVENTS_URL+"?t="+Date.now(),9000),
+      fetchJsonWithTimeout(RIVERCOM_ACTIVITY_URL+"?t="+Date.now(),9000)
+    ]);
+    riverComLiveMarkers.forEach(m=>m.remove());
+    riverComLiveMarkers=[];
+    const threads=Array.isArray(rg&&rg.threads)?rg.threads:[];
+    const calls=Array.isArray(rc&&rc.calls)?rc.calls:[];
+    let plotted=0, associatedCalls=0;
+    const bounds=[];
+    for(const thread of threads){
+      const p=thread&&thread.primary?thread.primary:{};
+      if(!p.location) continue;
+      const geo=await riverComGeocode(p.location);
+      if(!geo) continue;
+      const matches=riverComCallsForIncident(p,thread.signals,calls);
+      const latest=matches[0]||null;
+      const audio=latest&&latest.audio_url?String(latest.audio_url):rgAudioUrl(p.audio);
+      const level=Number(p.level)||0;
+      const radius=Math.max(7,Math.min(14,7+level));
+      const marker=L.circleMarker([geo.lat,geo.lon],{
+        radius:radius,weight:2,color:"#111",fillColor:level>=5?"#ff6b6b":level>=3?"#ffb86b":"#ffd166",fillOpacity:.92
+      }).addTo(riverComLiveMap);
+      const when=rgTsDate(p.ts);
+      const popup='<div class="rivercom-map-popup"><strong>'+htmlEscape(p.typeLine||p.type||"RiverCom incident")+'</strong><br>'+
+        htmlEscape(p.location)+'<br>'+
+        htmlEscape(rgRelativeAge(p.ts))+' · Level '+htmlEscape(String(p.level||"?"))+'<br>'+
+        '<b>RiverCom calls:</b> '+matches.length+
+        (p.groupDisplay?'<br><b>Channel:</b> '+htmlEscape(p.groupDisplay):'')+
+        (Array.isArray(p.units)&&p.units.length?'<br><b>Units:</b> '+htmlEscape(p.units.join(", ")):'')+
+        (audio?'<br><audio controls preload="none" src="'+htmlEscape(audio)+'"></audio>':'')+
+        '</div>';
+      marker.bindPopup(popup);
+      riverComLiveMarkers.push(marker);
+      bounds.push([geo.lat,geo.lon]);
+      plotted++; associatedCalls+=matches.length;
+    }
+    if(bounds.length===1) riverComLiveMap.setView(bounds[0],13);
+    else if(bounds.length>1) riverComLiveMap.fitBounds(bounds,{padding:[28,28],maxZoom:13});
+    else riverComLiveMap.setView([47.84,-120.02],9);
+    setTimeout(()=>riverComLiveMap.invalidateSize(),50);
+    if(updated) updated.textContent=plotted+" mapped";
+    if(status){
+      status.textContent=plotted
+        ? plotted+" geolocated incident"+(plotted===1?"":"s")+" · "+associatedCalls+" matched RiverCom call"+(associatedCalls===1?"":"s")
+        : "No currently geolocated RiverCom incidents";
+      setTimeout(()=>status.style.display="none",6000);
+    }
+  }catch(e){
+    console.error("RiverCom Live Incident Map failed",e);
+    if(updated) updated.textContent="Unavailable";
+    if(status){status.style.display="block";status.textContent="RiverCom live map temporarily unavailable";}
+  }
+}
+
+
+function stationStatusClass(s){return s==="LIVE"?"live":s==="DEAD_AIR"?"dead-air":s==="OFF_AIR"?"off-air":"unknown";}
+function stationStatusLabel(s){return s==="LIVE"?"LIVE":s==="DEAD_AIR"?"DEAD AIR":s==="OFF_AIR"?"STREAM OFF AIR":"UNKNOWN";}
+function stationAgeText(iso){
+  const t=Date.parse(iso||""); if(!Number.isFinite(t)) return "";
+  const s=Math.max(0,Math.round((Date.now()-t)/1000));
+  return s<90?s+" sec ago":s<5400?Math.round(s/60)+" min ago":Math.round(s/3600)+" hr ago";
+}
+function setStationBadge(code,item){
+  const el=document.getElementById(code==="KOZI"?"koziStreamStatus":"kcsyStreamStatus"); if(!el)return;
+  const s=item&&item.status?String(item.status):"UNKNOWN";
+  el.className="station-health-badge "+stationStatusClass(s); el.textContent=stationStatusLabel(s);
+  const b=[];
+  if(item&&Number.isFinite(Number(item.meanDbfs)))b.push("mean "+Number(item.meanDbfs).toFixed(1)+" dBFS");
+  if(item&&Number.isFinite(Number(item.peakDbfs)))b.push("peak "+Number(item.peakDbfs).toFixed(1)+" dBFS");
+  if(item&&item.lastChecked)b.push("checked "+stationAgeText(item.lastChecked));
+  el.title=(item&&item.name?item.name:code)+" Internet stream: "+stationStatusLabel(s)+(b.length?" · "+b.join(" · "):"");
+}
+async function loadRadioStationStatus(){
+  const alert=document.getElementById("stationStreamAlert");
+  try{
+    const d=await fetchJsonWithTimeout(RADIO_STATION_STATUS_URL+"?t="+Date.now(),8000), st=d&&d.stations?d.stations:{};
+    setStationBadge("KOZI",st.KOZI); setStationBadge("KCSY",st.KCSY);
+    const p=[];
+    for(const code of ["KOZI","KCSY"]){
+      const x=st[code]; if(!x)continue;
+      if(x.status==="DEAD_AIR"||x.status==="OFF_AIR"){
+        const lab=x.status==="DEAD_AIR"?"DEAD AIR":"STREAM OFF AIR";
+        p.push(code+" — "+lab+(x.since?" ("+stationAgeText(x.since)+")":""));
+      }
+    }
+    if(alert){alert.textContent=p.length?"⚠ Radio stream alert: "+p.join(" · "):"";alert.classList.toggle("visible",p.length>0);}
+  }catch(e){
+    console.warn("Radio station status unavailable",e);
+    setStationBadge("KOZI",{status:"UNKNOWN"});setStationBadge("KCSY",{status:"UNKNOWN"});
+    if(alert){alert.textContent="";alert.classList.remove("visible");}
+  }
+}
+
+document.addEventListener("DOMContentLoaded",()=>{
+  loadRadiantGlowMajorEvents(false);
+  setInterval(()=>loadRadiantGlowMajorEvents(false),60000);
+  loadRiverComLiveMap(false);
+  setInterval(()=>loadRiverComLiveMap(false),60000);
+  loadRadioStationStatus();
+  setInterval(loadRadioStationStatus,30000);
+});
+
+</script>
+</body>
+</html>
